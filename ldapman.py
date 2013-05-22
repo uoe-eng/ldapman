@@ -31,6 +31,16 @@ class LDAPSession(object):
             self._conn.unbind_s()
             self.closed = True
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Any thrown exceptions in the context-managed region are ignored.
+        # FIXME: Implement rollback if an exception is raised.
+        self.close()
+        return False  # we do not handle exceptions.
+
+    def __enter__(self):
+        self.open()
+        return self
+
     def ldap_user_search(self, token):
         return ldap_search(self, token,
                            get_conf(peoplebase),
@@ -41,37 +51,16 @@ class LDAPSession(object):
                            get_conf(groupbase),
                            get_conf(groupfilter))
 
-    def ldap_search(self, token, base, filter):
+    def ldap_search(self, token, base, filterstr):
         # FIX: try/except needed only for explicit errs during testing
         try:
-            result = self._conn.search(base,
-                                       ldap.SCOPE_SUBTREE,
-                                       searchFilter=filter % (token))
-            result_type, result_data = self._conn.result(result, 0)
+            result = self._conn.search_s(base,
+                                         ldap.SCOPE_SUBTREE,
+                                         filterstr=filterstr % (token))
+            result_data = self._conn.result(result, 0)
             print result_data
         except Exception as e:
             print e
-
-
-class myShellac(shellac.Shellac, object):
-
-    def __init__(self, ld):
-        super(myShellac, self).__init__()
-        self.ld = ld
-
-    class do_group():
-
-        def do_add(self, args):
-            print("Added group: ", args)
-
-        # can't use self in completer decorator
-        #@shellac.completer(self.ld.ldap_group_search)
-        def do_edit(self, args):
-            print("Edited group: ", args)
-
-        #@shellac.completer(self.ld.ldap_group_search)
-        def do_search(self, args):
-            pass
 
 
 def parse_opts():
@@ -112,12 +101,25 @@ def get_conf(item):
 
 
 def main():
-    with closing(LDAPSession(options, config)) as ld:
-        ld.open()
+    with LDAPSession(options, config) as ld:
+        class LDAPShell(shellac.Shellac, object):
+            class do_group():
+
+                def do_add(self, args):
+                    print("Added group: ", args)
+
+                @shellac.completer(ld.ldap_group_search)
+                def do_edit(self, args):
+                    print("Edited group: ", args)
+
+                @shellac.completer(ld.ldap_group_search)
+                def do_search(self, args):
+                    pass
+
         if len(args) != 0:
-            myShellac(ld).onecmd(' '.join(args))
+            LDAPShell().onecmd(' '.join(args))
         else:
-            myShellac(ld).cmdloop()
+            LDAPShell().cmdloop()
 
 
 options, args = parse_opts()
