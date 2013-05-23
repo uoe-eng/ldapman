@@ -49,16 +49,17 @@ class LDAPSession(object):
                                 get_conf('groupbase'),
                                 get_conf('groupfilter'))
 
-    def ldap_search(self, token, base, filterstr):
-        # FIX: try/except needed only for explicit errs during testing
-        try:
-            result = self._conn.search_s(base,
-                                         ldap.SCOPE_SUBTREE,
-                                         filterstr=filterstr % (token))
-            result_data = self._conn.result(result, 0)
-            print result_data
-        except Exception as e:
-            print e
+    def ldap_search(self, token, base, filterstr,
+                    scope=ldap.SCOPE_SUBTREE, timeout=-1):
+        result = self._conn.search_st(base,
+                                      scope,
+                                      filterstr=filterstr % (token),
+                                      timeout=timeout)
+
+        # Result is a list of tuples, first item of which is DN
+        # Strip off the base, then parition on = and keep value
+        # Could alternatively split on = and keep first value?
+        return [x[0].replace(',' + base, '').partition('=')[2] for x in result]
 
 
 def parse_opts():
