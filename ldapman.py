@@ -40,7 +40,7 @@ class LDAPSession(object):
         return self
 
     def ldap_user_search(self, token):
-        return self.ldap_search(self, token,
+        return self.ldap_search(token,
                            get_conf('userbase'),
                            get_conf('userfilter'))
 
@@ -102,6 +102,19 @@ def get_conf(item):
 def main():
     with LDAPSession() as ld:
         class LDAPShell(shellac.Shellac, object):
+            class do_user():
+
+                def do_add(self, args):
+                    print("Added user: ", args)
+
+                @shellac.completer(ld.ldap_user_search)
+                def do_edit(self, args):
+                    print("Edited user: ", args)
+
+                @shellac.completer(ld.ldap_user_search)
+                def do_search(self, args):
+                    print ' '.join(ld.ldap_user_search(args))
+
             class do_group():
 
                 def do_add(self, args):
