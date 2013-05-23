@@ -13,11 +13,9 @@ from contextlib import closing
 
 class LDAPSession(object):
 
-    def __init__(self, options, config):
+    def __init__(self):
         self._conn = None
         self.closed = True
-        self.options = options
-        self.config = config
 
     def open(self):
         server = get_conf('server')
@@ -101,7 +99,7 @@ def get_conf(item):
 
 
 def main():
-    with LDAPSession(options, config) as ld:
+    with LDAPSession() as ld:
         class LDAPShell(shellac.Shellac, object):
             class do_group():
 
