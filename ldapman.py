@@ -40,14 +40,14 @@ class LDAPSession(object):
         return self
 
     def ldap_user_search(self, token):
-        return ldap_search(self, token,
-                           get_conf(peoplebase),
-                           get_conf(peoplefilter))
+        return self.ldap_search(self, token,
+                           get_conf('userbase'),
+                           get_conf('userfilter'))
 
     def ldap_group_search(self, token):
-        return ldap_search(token,
-                           get_conf(groupbase),
-                           get_conf(groupfilter))
+        return self.ldap_search(token,
+                                get_conf('groupbase'),
+                                get_conf('groupfilter'))
 
     def ldap_search(self, token, base, filterstr):
         # FIX: try/except needed only for explicit errs during testing
