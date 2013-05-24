@@ -51,10 +51,17 @@ class LDAPSession(object):
 
     def ldap_search(self, token, base, filterstr,
                     scope=ldap.SCOPE_SUBTREE, timeout=-1):
-        result = self._conn.search_st(base,
-                                      scope,
-                                      filterstr=filterstr % (token),
-                                      timeout=timeout)
+        try:
+            timeout = float(get_conf('timeout'))
+        except ConfigParser.Error:
+            pass
+        try:
+            result = self._conn.search_st(base,
+                                          scope,
+                                          filterstr=filterstr % (token),
+                                          timeout=timeout)
+        except ldap.TIMEOUT:
+            return []
 
         # Result is a list of tuples, first item of which is DN
         # Strip off the base, then parition on = and keep value
@@ -102,6 +109,7 @@ def get_conf(item):
 def main():
     with LDAPSession() as ld:
         class LDAPShell(shellac.Shellac, object):
+
             class do_user():
 
                 def do_add(self, args):
