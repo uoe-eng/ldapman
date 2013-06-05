@@ -61,7 +61,7 @@ class LDAPSession(object):
                                           filterstr=filterstr % (token),
                                           timeout=timeout)
         except ldap.TIMEOUT:
-            return []
+            raise shellac.CompletionError("Search timed out.")
 
         # Result is a list of tuples, first item of which is DN
         # Strip off the base, then parition on = and keep value
