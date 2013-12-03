@@ -5,6 +5,7 @@ import shellac
 # Might not need all 3?
 import ldap
 import ldap.sasl
+import ldap.schema
 import sys
 import pprint
 import ConfigParser
@@ -24,6 +25,7 @@ class LDAPSession(object):
         self._conn = ldap.initialize(server)
         sasl = ldap.sasl.gssapi()
         self._conn.sasl_interactive_bind_s('', sasl)
+        subschemasubentry_dn, self.schema = ldap.schema.urlfetch(server)
         self.closed = False
 
     def close(self):
@@ -40,6 +42,19 @@ class LDAPSession(object):
     def __enter__(self):
         self.open()
         return self
+
+    def ldap_objc(self, searchtype, flatlist=0, token=""):
+        must = []
+        may = []
+        for objc in get_conf('%sobjectclass' % (searchtype)).split('::'):
+            attrs = self.schema.get_obj(ldap.schema.ObjectClass, objc)
+            must.extend(attrs.must)
+            may.extend(attrs.may)
+        if flatlist == 1:
+            all = must + may
+            return [x for x in all if x.startswith(token)]
+        else:
+            return must, may
 
     def ldap_search(self, searchtype, token,
                     scope=ldap.SCOPE_SUBTREE, timeout=-1):
@@ -83,6 +98,10 @@ class LDAPSession(object):
             raise shellac.CompletionError("Search timed out.")
 
         return pprint.pformat(result)
+
+    def ldap_add(self, searchtype, token):
+
+        return "ldap_add"
 
 
 def parse_opts():
@@ -141,8 +160,14 @@ def main():
 
             class do_group():
 
+                @shellac.completer(partial(ld.ldap_objc, "group", 1))
                 def do_add(self, args):
-                    print("Added group: ", args)
+                    print(ld.ldap_add("group", args))
+
+                def help_add(self, args):
+                        must, may = ld.ldap_objc("group")
+                        helpstr = "Must: %s\nMay: %s\n" % (','.join(must), ','.join(may))
+                        return helpstr
 
                 @shellac.completer(partial(ld.ldap_search, "group"))
                 def do_edit(self, args):
