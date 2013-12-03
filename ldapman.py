@@ -6,6 +6,7 @@ import shellac
 import ldap
 import ldap.sasl
 import sys
+import pprint
 import ConfigParser
 from optparse import OptionParser
 from contextlib import closing
@@ -81,7 +82,7 @@ class LDAPSession(object):
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
 
-        return result
+        return pprint.pformat(result)
 
 
 def parse_opts():
