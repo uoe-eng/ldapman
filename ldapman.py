@@ -9,6 +9,7 @@ import sys
 import ConfigParser
 from optparse import OptionParser
 from contextlib import closing
+from functools import partial
 
 
 class LDAPSession(object):
@@ -39,18 +40,12 @@ class LDAPSession(object):
         self.open()
         return self
 
-    def ldap_user_search(self, token):
-        return self.ldap_search(token,
-                           get_conf('userbase'),
-                           get_conf('userfilter'))
-
-    def ldap_group_search(self, token):
-        return self.ldap_search(token,
-                                get_conf('groupbase'),
-                                get_conf('groupfilter'))
-
-    def ldap_search(self, token, base, filterstr,
+    def ldap_search(self, searchtype, token,
                     scope=ldap.SCOPE_SUBTREE, timeout=-1):
+
+        base = get_conf('%sbase' % (searchtype))
+        filterstr = get_conf('%sfilter' % (searchtype))
+
         try:
             timeout = float(get_conf('timeout'))
         except ConfigParser.Error:
@@ -67,6 +62,26 @@ class LDAPSession(object):
         # Strip off the base, then parition on = and keep value
         # Could alternatively split on = and keep first value?
         return [x[0].replace(',' + base, '').partition('=')[2] for x in result]
+
+    def ldap_attrs(self, searchtype, token,
+                   scope=ldap.SCOPE_SUBTREE, timeout=-1):
+
+        base = get_conf('%sbase' % (searchtype))
+        filterstr = get_conf('%sfilter' % (searchtype))
+
+        try:
+            timeout = float(get_conf('timeout'))
+        except ConfigParser.Error:
+            pass
+        try:
+            result = self._conn.search_st(base,
+                                          scope,
+                                          filterstr=filterstr % (token),
+                                          timeout=timeout)
+        except ldap.TIMEOUT:
+            raise shellac.CompletionError("Search timed out.")
+
+        return result
 
 
 def parse_opts():
@@ -115,26 +130,26 @@ def main():
                 def do_add(self, args):
                     print("Added user: ", args)
 
-                @shellac.completer(ld.ldap_user_search)
+                @shellac.completer(partial(ld.ldap_search, "user"))
                 def do_edit(self, args):
                     print("Edited user: ", args)
 
-                @shellac.completer(ld.ldap_user_search)
+                @shellac.completer(partial(ld.ldap_search, "user"))
                 def do_search(self, args):
-                    print ' '.join(ld.ldap_user_search(args))
+                    print(ld.ldap_attrs("user", args))
 
             class do_group():
 
                 def do_add(self, args):
                     print("Added group: ", args)
 
-                @shellac.completer(ld.ldap_group_search)
+                @shellac.completer(partial(ld.ldap_search, "group"))
                 def do_edit(self, args):
                     print("Edited group: ", args)
 
-                @shellac.completer(ld.ldap_group_search)
+                @shellac.completer(partial(ld.ldap_search, "group"))
                 def do_search(self, args):
-                    pass
+                    print(ld.ldap_attrs("group", args))
 
         if len(args) != 0:
             LDAPShell().onecmd(' '.join(args))
