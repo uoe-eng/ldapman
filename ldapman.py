@@ -13,6 +13,7 @@ from contextlib import closing
 from functools import partial
 import io
 
+
 class LDAPSession(object):
 
     def __init__(self):
@@ -20,7 +21,7 @@ class LDAPSession(object):
         self.closed = True
 
     def open(self):
-        server = get_conf('server')
+        server = config.get('global', 'server')
         self._conn = ldap.initialize(server)
         sasl = ldap.sasl.gssapi()
         self._conn.sasl_interactive_bind_s('', sasl)
@@ -45,7 +46,7 @@ class LDAPSession(object):
     def ldap_objc(self, searchtype, token=""):
         must = []
         may = []
-        for objc in get_conf('%sobjectclass' % (searchtype)).split(','):
+        for objc in config.get(searchtype, 'objectclass').split(','):
             attrs = self.schema.get_obj(ldap.schema.ObjectClass, objc)
             must.extend(attrs.must)
             may.extend(attrs.may)
@@ -54,11 +55,11 @@ class LDAPSession(object):
     def ldap_search(self, searchtype, token,
                     scope=ldap.SCOPE_SUBTREE, timeout=-1):
 
-        base = get_conf('%sbase' % (searchtype))
-        filterstr = get_conf('%sfilter' % (searchtype))
+        base = config.get(searchtype, 'base')
+        filterstr = config.get(searchtype, 'filter')
 
         try:
-            timeout = float(get_conf('timeout'))
+            timeout = config.getfloat('global', 'timeout')
         except ConfigParser.Error:
             pass
         try:
@@ -77,11 +78,11 @@ class LDAPSession(object):
     def ldap_attrs(self, searchtype, token,
                    scope=ldap.SCOPE_SUBTREE, timeout=-1):
 
-        base = get_conf('%sbase' % (searchtype))
-        filterstr = get_conf('%sfilter' % (searchtype))
+        base = config.get(searchtype, 'base')
+        filterstr = config.get(searchtype, 'filter')
 
         try:
-            timeout = float(get_conf('timeout'))
+            timeout = config.getfloat('global', 'timeout')
         except ConfigParser.Error:
             pass
         try:
@@ -109,7 +110,7 @@ class LDAPSession(object):
         # FIXME: group-specific config
         # set an empty members list by default
         attrs['member'] = ['']
-        attrs['objectclass'] = get_conf('%sobjectclass' % (searchtype)).split(',')
+        attrs['objectclass'] = config.get(searchtype, 'objectclass').split(',')
 
         # Check that all 'must' attrs are provided
         must, may = self.ldap_objc(searchtype)
@@ -119,7 +120,7 @@ class LDAPSession(object):
             raise ldap.LDAPError(
                 "Missing mandatory attribute(s): %s" % ','.join(missing))
 
-        dn = "cn=%s,%s" % (attrs['cn'], get_conf('%sbase' % (searchtype)))
+        dn = "cn=%s,%s" % (attrs['cn'], config.get(searchtype, 'base'))
 
         # Convert the attrs dict into ldif
         ldif = ldap.modlist.addModlist(attrs)
@@ -133,10 +134,6 @@ def parse_opts():
     parser = OptionParser()
     parser.add_option("-c", "--config", dest="config",
                       help="Path to configuration file")
-    parser.add_option("-s", "--server", dest="server",
-                      help="LDAP server URI")
-    parser.add_option("-b", "--base", dest="base",
-                      help="LDAP base")
 
     return parser.parse_args()
 
@@ -152,16 +149,6 @@ def parse_config(options):
     config.read(config_file)
 
     return config
-
-
-def get_conf(item):
-    """Get configuration from either cmd-line or config file."""
-
-    opt = options.__dict__.get(item)
-    if opt is None:
-        # Read from config file
-        opt = config.get('global', item)
-    return opt
 
 
 def main():
