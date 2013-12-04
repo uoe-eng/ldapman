@@ -1,18 +1,17 @@
 #!/usr/bin/python
 
 import shellac
-
-# Might not need all 3?
 import ldap
 import ldap.sasl
 import ldap.schema
+import ldap.modlist
 import sys
 import pprint
 import ConfigParser
 from optparse import OptionParser
 from contextlib import closing
 from functools import partial
-
+import io
 
 class LDAPSession(object):
 
@@ -95,9 +94,37 @@ class LDAPSession(object):
 
         return pprint.pformat(result)
 
-    def ldap_add(self, searchtype, token):
+    def ldap_add(self, searchtype, args):
 
-        return "ldap_add"
+        attrs = {}
+        cmdopts = ConfigParser.SafeConfigParser()
+        # Preserve case of keys
+        cmdopts.optionxform = str
+        # Add an 'opts' section header to allow ConfigParser to work
+        args = "[opts]\n" + args.replace(' ', '\n')
+        cmdopts.readfp(io.BytesIO(args))
+
+        attrs = dict(cmdopts.items('opts'))
+
+        # FIXME: group-specific config
+        # set an empty members list by default
+        attrs['member'] = ['']
+        attrs['objectclass'] = get_conf('%sobjectclass' % (searchtype)).split(',')
+
+        # Check that all 'must' attrs are provided
+        must, may = self.ldap_objc(searchtype)
+
+        missing = set(must).difference(attrs.keys())
+        if len(missing):
+            raise ldap.LDAPError(
+                "Missing mandatory attribute(s): %s" % ','.join(missing))
+
+        dn = "cn=%s,%s" % (attrs['cn'], get_conf('%sbase' % (searchtype)))
+
+        # Convert the attrs dict into ldif
+        ldif = ldap.modlist.addModlist(attrs)
+
+        self._conn.add_s(dn, ldif)
 
 
 def parse_opts():
