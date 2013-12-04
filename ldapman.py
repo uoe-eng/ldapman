@@ -43,18 +43,14 @@ class LDAPSession(object):
         self.open()
         return self
 
-    def ldap_objc(self, searchtype, flatlist=0, token=""):
+    def ldap_objc(self, searchtype, token=""):
         must = []
         may = []
-        for objc in get_conf('%sobjectclass' % (searchtype)).split('::'):
+        for objc in get_conf('%sobjectclass' % (searchtype)).split(','):
             attrs = self.schema.get_obj(ldap.schema.ObjectClass, objc)
             must.extend(attrs.must)
             may.extend(attrs.may)
-        if flatlist == 1:
-            all = must + may
-            return [x for x in all if x.startswith(token)]
-        else:
-            return must, may
+        return must, may
 
     def ldap_search(self, searchtype, token,
                     scope=ldap.SCOPE_SUBTREE, timeout=-1):
@@ -143,6 +139,11 @@ def get_conf(item):
 
 def main():
     with LDAPSession() as ld:
+
+        def complete_add(searchtype, token=""):
+            must, may = ld.ldap_objc(searchtype)
+            return shellac.complete_list(must + may, token)
+
         class LDAPShell(shellac.Shellac, object):
 
             class do_user():
@@ -160,14 +161,17 @@ def main():
 
             class do_group():
 
-                @shellac.completer(partial(ld.ldap_objc, "group", 1))
+                @shellac.completer(partial(complete_add, "group"))
                 def do_add(self, args):
-                    print(ld.ldap_add("group", args))
+                    try:
+                        ld.ldap_add("group", args)
+                        print("Success!")
+                    except ldap.LDAPError as e:
+                        print(e)
 
                 def help_add(self, args):
-                        must, may = ld.ldap_objc("group")
-                        helpstr = "Must: %s\nMay: %s\n" % (','.join(must), ','.join(may))
-                        return helpstr
+                    must, may = ld.ldap_objc("group")
+                    return "Must: %s\nMay: %s\n" % (','.join(must), ','.join(may))
 
                 @shellac.completer(partial(ld.ldap_search, "group"))
                 def do_edit(self, args):
