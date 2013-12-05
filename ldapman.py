@@ -22,8 +22,9 @@ class LDAPSession(object):
         self.closed = True
 
     def open(self):
-        server = config.get('global', 'server')
-        self._conn = ldap.initialize(server)
+        self.schema = None
+        self.server = config.get('global', 'server')
+        self._conn = ldap.initialize(self.server)
         sasl = ldap.sasl.gssapi()
         self._conn.sasl_interactive_bind_s('', sasl)
         self.closed = False
@@ -46,7 +47,8 @@ class LDAPSession(object):
     def ldap_check_schema(self, objconf):
 
         if self.schema is None:
-            subschemasubentry_dn, self.schema = ldap.schema.urlfetch(server)
+            subschemasubentry_dn, self.schema = ldap.schema.urlfetch(
+                self.server)
 
         must = []
         may = []
