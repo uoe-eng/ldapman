@@ -26,7 +26,6 @@ class LDAPSession(object):
         self._conn = ldap.initialize(server)
         sasl = ldap.sasl.gssapi()
         self._conn.sasl_interactive_bind_s('', sasl)
-        subschemasubentry_dn, self.schema = ldap.schema.urlfetch(server)
         self.closed = False
 
     def close(self):
@@ -44,11 +43,15 @@ class LDAPSession(object):
         self.open()
         return self
 
-    def ldap_objc(self, objconf):
+    def ldap_check_schema(self, objconf):
+
+        if self.schema is None:
+            subschemasubentry_dn, self.schema = ldap.schema.urlfetch(server)
+
         must = []
         may = []
-        for objc in objconf['objectclass']:
-            attrs = self.schema.get_obj(ldap.schema.ObjectClass, objc)
+        for entry in objconf['objectclass']:
+            attrs = self.schema.get_obj(ldap.schema.ObjectClass, entry)
             must.extend(attrs.must)
             may.extend(attrs.may)
         return must, may
@@ -170,7 +173,7 @@ def main():
                             objconf[section]['defaultattrs'])
 
                     # Get schema info
-                    objconf[section]['must'], objconf[section]['may'] = ld.ldap_objc(objconf[section])
+                    objconf[section]['must'], objconf[section]['may'] = ld.ldap_check_schema(objconf[section])
 
             return objconf
 
