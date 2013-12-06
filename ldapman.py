@@ -127,6 +127,13 @@ class LDAPSession(object):
 
         self._conn.add_s(dn, ldif)
 
+    def ldap_delete(self, objconf, args):
+
+        dn = "cn=%s,%s" % (args, objconf['base'])
+
+        # Delete the entry
+        self._conn.delete_s(dn)
+
 
 def parse_opts():
     """Handle command-line arguments"""
@@ -134,6 +141,10 @@ def parse_opts():
     parser = OptionParser()
     parser.add_option("-c", "--config", dest="config",
                       help="Path to configuration file")
+
+    parser.add_option("-f", "--force", dest="force",
+                      action="store_true", default=False,
+                      help="Don't prompt for confirmation for operations")
 
     return parser.parse_args()
 
@@ -215,6 +226,25 @@ def main():
                     conf = objconf["group"]
                     return "Must: %s\nMay: %s\n" % (
                         ','.join(conf.must), ','.join(conf.may))
+
+                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                def do_delete(self, args):
+
+                    if not options.force:
+                        # prompt for confirmation
+                        if not raw_input(
+                                "Are you sure? (y/n):").lower().startswith('y'):
+                            return
+
+                    try:
+                        ld.ldap_delete(objconf["group"], args)
+                        print("Success!")
+                    except ldap.LDAPError as e:
+                        print(e)
+
+                def help_delete(self, args):
+                    conf = objconf["group"]
+                    return "Delete an entry (DN)"
 
                 @shellac.completer(partial(ld.ldap_search, objconf["group"]))
                 def do_edit(self, args):
