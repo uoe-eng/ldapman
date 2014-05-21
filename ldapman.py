@@ -134,6 +134,55 @@ class LDAPSession(object):
         # Delete the entry
         self._conn.delete_s(dn)
 
+    def ldap_rename(self, objconf, args):
+
+        name, newname = args.split(' ')
+
+        # Rename the entry
+        self._conn.rename_s("cn=%s,%s" % (name, objconf['base']),
+                            "cn=%s" % (newname))
+
+    # TODO: Make add and delete a single function?
+    def ldap_add_attr(self, objconf, objtype, attr, args):
+
+        """Expects args to be of form 'object, items type, item1, item2...'"""
+
+        arglist = args.split(' ')
+        if len(arglist) < 3:
+            print("Syntax Error: missing arguments.")
+            return
+
+        object = "%s,%s" % (objconf[objtype]['filter'] % (arglist[0]),
+                            objconf[objtype]['base'])
+
+        for item in arglist[2::]:
+            item = "%s,%s" % (objconf[arglist[1]]['filter'] % (item),
+                              objconf[arglist[1]]['base'])
+
+            self._conn.modify_s(object, [(ldap.MOD_ADD, attr, item)])
+
+        print("Success!")
+
+    def ldap_delete_attr(self, objconf, objtype, attr, args):
+
+        """Expects args to be of form 'object, items type, item1, item2...'"""
+
+        arglist = args.split(' ')
+        if len(arglist) < 3:
+            print("Syntax Error: missing arguments.")
+            return
+
+        object = "%s,%s" % (objconf[objtype]['filter'] % (arglist[0]),
+                            objconf[objtype]['base'])
+
+        for item in arglist[2::]:
+            item = "%s,%s" % (objconf[arglist[1]]['filter'] % (item),
+                              objconf[arglist[1]]['base'])
+
+            self._conn.modify_s(object, [(ldap.MOD_DELETE, attr, item)])
+
+        print("Success!")
+
 
 def parse_opts():
     """Handle command-line arguments"""
@@ -247,8 +296,26 @@ def main():
                     return "Delete an entry (DN)"
 
                 @shellac.completer(partial(ld.ldap_search, objconf["group"]))
-                def do_edit(self, args):
-                    print("Edited group: ", args)
+                def do_addmember(self, args):
+                    try:
+                        ld.ldap_add_attr(objconf, "group", "member", args)
+                    except ldap.LDAPError as e:
+                        print(e)
+
+                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                def do_delmember(self, args):
+                    try:
+                        ld.ldap_delete_attr(objconf, "group", "member", args)
+                    except ldap.LDAPError as e:
+                        print(e)
+
+                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                def do_rename(self, args):
+                    try:
+                        ld.ldap_rename(objconf["group"], args)
+                        print("Success!")
+                    except ldap.LDAPError as e:
+                        print(e)
 
                 @shellac.completer(partial(ld.ldap_search, objconf["group"]))
                 def do_search(self, args):
