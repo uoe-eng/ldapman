@@ -142,15 +142,13 @@ class LDAPSession(object):
         self._conn.rename_s("cn=%s,%s" % (name, objconf['base']),
                             "cn=%s" % (newname))
 
-    # TODO: Make add and delete a single function?
-    def ldap_add_attr(self, objconf, objtype, attr, args):
+    def ldap_mod_attr(self, objconf, objtype, modmethod, attr, args):
 
         """Expects args to be of form 'object, items type, item1, item2...'"""
 
         arglist = args.split(' ')
         if len(arglist) < 3:
-            print("Syntax Error: missing arguments.")
-            return
+            raise IndexError("Missing arguments.")
 
         object = "%s,%s" % (objconf[objtype]['filter'] % (arglist[0]),
                             objconf[objtype]['base'])
@@ -159,29 +157,9 @@ class LDAPSession(object):
             item = "%s,%s" % (objconf[arglist[1]]['filter'] % (item),
                               objconf[arglist[1]]['base'])
 
-            self._conn.modify_s(object, [(ldap.MOD_ADD, attr, item)])
-
-        print("Success!")
-
-    def ldap_delete_attr(self, objconf, objtype, attr, args):
-
-        """Expects args to be of form 'object, items type, item1, item2...'"""
-
-        arglist = args.split(' ')
-        if len(arglist) < 3:
-            print("Syntax Error: missing arguments.")
-            return
-
-        object = "%s,%s" % (objconf[objtype]['filter'] % (arglist[0]),
-                            objconf[objtype]['base'])
-
-        for item in arglist[2::]:
-            item = "%s,%s" % (objconf[arglist[1]]['filter'] % (item),
-                              objconf[arglist[1]]['base'])
-
-            self._conn.modify_s(object, [(ldap.MOD_DELETE, attr, item)])
-
-        print("Success!")
+            self._conn.modify_s(object,
+                                [(getattr(ldap, "MOD_" + modmethod.upper()),
+                                  attr, item)])
 
 
 def parse_opts():
@@ -298,15 +276,17 @@ def main():
                 @shellac.completer(partial(ld.ldap_search, objconf["group"]))
                 def do_addmember(self, args):
                     try:
-                        ld.ldap_add_attr(objconf, "group", "member", args)
-                    except ldap.LDAPError as e:
+                        ld.ldap_mod_attr(objconf, "group", "add", "member", args)
+                        print("Success!")
+                    except (ldap.LDAPError, IndexError) as e:
                         print(e)
 
                 @shellac.completer(partial(ld.ldap_search, objconf["group"]))
                 def do_delmember(self, args):
                     try:
-                        ld.ldap_delete_attr(objconf, "group", "member", args)
-                    except ldap.LDAPError as e:
+                        ld.ldap_mod_attr(objconf, "group", "member", args)
+                        print("Success!")
+                    except (ldap.LDAPError, IndexError) as e:
                         print(e)
 
                 @shellac.completer(partial(ld.ldap_search, objconf["group"]))
