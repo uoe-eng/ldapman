@@ -153,7 +153,7 @@ class LDAPSession(object):
         object = "%s,%s" % (objconf[objtype]['filter'] % (arglist[0]),
                             objconf[objtype]['base'])
 
-        for item in arglist[2::]:
+        for item in arglist[2:]:
             item = "%s,%s" % (objconf[arglist[1]]['filter'] % (item),
                               objconf[arglist[1]]['base'])
 
