@@ -161,6 +161,20 @@ class LDAPSession(object):
                                 [(getattr(ldap, "MOD_" + modmethod.upper()),
                                   attr, item)])
 
+    def ldap_replace_attr(self, objconf, objtype, args):
+
+        """Expects args to be the object, the attr to modify, and the replacement value."""
+
+        arglist = args.split(' ')
+
+        object = "%s,%s" % (objconf[objtype]['filter'] % (arglist[0]),
+                            objconf[objtype]['base'])
+
+        attr = arglist[1]
+        value = arglist[2]
+
+        self._conn.modify_s(object, [(ldap.MOD_REPLACE, attr, value)])
+
 
 def parse_opts():
     """Handle command-line arguments"""
@@ -293,6 +307,14 @@ def main():
                 def do_rename(self, args):
                     try:
                         ld.ldap_rename(objconf["group"], args)
+                        print("Success!")
+                    except ldap.LDAPError as e:
+                        print(e)
+
+                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                def do_edit(self, args):
+                    try:
+                        ld.ldap_replace_attr(objconf, "group", args)
                         print("Success!")
                     except ldap.LDAPError as e:
                         print(e)
