@@ -202,11 +202,11 @@ def main():
             class do_user():
 
                 def do_add(self, args):
-                    print("Added user: ", args)
+                    print("Method not implemented.")
 
                 @shellac.completer(partial(ld.ldap_search, objconf["user"]))
                 def do_edit(self, args):
-                    print("Edited user: ", args)
+                    print("Method not implemented.")
 
                 @shellac.completer(partial(ld.ldap_search, objconf["user"]))
                 def do_search(self, args):
