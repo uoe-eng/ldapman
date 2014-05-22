@@ -44,10 +44,6 @@ class LDAPSession(object):
         self.open()
         return self
 
-    def buildDN(self, objconf, obj):
-        return "%s,%s" % (objconf['filter'] % (obj),
-                          objconf['base'])
-
     def ldap_check_schema(self, objconf):
 
         if self.schema is None:
@@ -127,20 +123,20 @@ class LDAPSession(object):
         # Convert the attrs dict into ldif
         ldif = ldap.modlist.addModlist(attrs)
 
-        self._conn.add_s(self.buildDN(objconf,
-                                      attrs[objconf['filter'].partition('=')[0]]), ldif)
+        self._conn.add_s(objconf.buildDN(
+                         attrs[objconf['filter'].partition('=')[0]]), ldif)
 
     def ldap_delete(self, objconf, args):
 
         # Delete the entry
-        self._conn.delete_s(self.buildDN(objconf, args))
+        self._conn.delete_s(objconf.buildDN(args))
 
     def ldap_rename(self, objconf, args):
 
         name, newname = args.split(' ')
 
         # Rename the entry
-        self._conn.rename_s(self.buildDN(objconf, name),
+        self._conn.rename_s(objconf.buildDN(name),
                             objconf['filter'] % (newname))
 
     def ldap_mod_attr(self, objconf, objtype, modmethod, attr, args):
@@ -149,10 +145,11 @@ class LDAPSession(object):
 
         obj, itemtype, items = args.split(None, 2)
 
-        self._conn.modify_s(self.buildDN(objconf[objtype], obj),
+        self._conn.modify_s(objconf.buildDN(obj, child=objtype),
                             [(getattr(ldap, "MOD_" + modmethod.upper()),
                               attr,
-                              self.buildDN(objconf[itemtype], item)) for item in items.split()])
+                              objconf.buildDN(item, child=itemtype))
+                                for item in items.split()])
 
     def ldap_replace_attr(self, objconf, objtype, args):
 
@@ -160,7 +157,7 @@ class LDAPSession(object):
 
         obj, attr, value = args.split()
 
-        self._conn.modify_s(self.buildDN(objconf[objtype], obj),
+        self._conn.modify_s(objconf.buildDN(obj, child=objtype),
                             [(ldap.MOD_REPLACE, attr, value)])
 
 
@@ -191,13 +188,20 @@ def parse_config(options):
     return config
 
 
+class LDAPConfig(dict):
+    def buildDN(self, obj, child=None):
+        conf = self[child] if child is not None else self
+        return "%s,%s" % (conf['filter'] % (obj),
+                          conf['base'])
+
+
 def main():
 
     with LDAPSession() as ld:
 
         def build_objconf():
 
-            objconf = {}
+            objconf = LDAPConfig()
             for section in config.sections():
                 if section != 'global':
                     # Read in all config options
