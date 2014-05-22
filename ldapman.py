@@ -151,14 +151,11 @@ class LDAPSession(object):
         obj = "%s,%s" % (objconf[objtype]['filter'] % (obj),
                             objconf[objtype]['base'])
 
-
-        for item in items.split():
-            item = "%s,%s" % (objconf[itemtype]['filter'] % (item),
-                              objconf[itemtype]['base'])
-
-            self._conn.modify_s(obj,
-                                [(getattr(ldap, "MOD_" + modmethod.upper()),
-                                  attr, item)])
+        self._conn.modify_s(obj,
+                            [(getattr(
+                                ldap, "MOD_" + modmethod.upper()),
+                                attr, ["%s,%s" % (objconf[itemtype]['filter'] % (item),
+                                                  objconf[itemtype]['base']) for item in items.split()])])
 
     def ldap_replace_attr(self, objconf, objtype, args):
 
