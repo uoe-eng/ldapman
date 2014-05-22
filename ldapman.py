@@ -244,7 +244,10 @@ def main():
 
                 @shellac.completer(partial(ld.ldap_search, objconf["user"]))
                 def do_search(self, args):
-                    print(ld.ldap_attrs(objconf["user"], args))
+                    try:
+                        print(ld.ldap_attrs(objconf["user"], args))
+                    except shellac.CompletionError:
+                        print("Search timed out.")
 
             class do_group():
 
