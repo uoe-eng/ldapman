@@ -133,8 +133,7 @@ class LDAPSession(object):
     def ldap_delete(self, objconf, args):
 
         # Delete the entry
-        self._conn.delete_s(self.buildDN(objconf,
-                                         attrs[objconf['filter'].partition('=')[0]]))
+        self._conn.delete_s(self.buildDN(objconf, args))
 
     def ldap_rename(self, objconf, args):
 
