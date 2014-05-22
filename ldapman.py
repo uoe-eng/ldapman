@@ -286,22 +286,6 @@ def main():
                     return "Delete an entry (DN)"
 
                 @shellac.completer(partial(ld.ldap_search, objconf, "group"))
-                def do_addmember(self, args):
-                    try:
-                        ld.ldap_mod_attr(objconf, "group", "add", "member", args)
-                        print("Success!")
-                    except (ldap.LDAPError, ValueError) as e:
-                        print(e)
-
-                @shellac.completer(partial(ld.ldap_search, objconf, "group"))
-                def do_delmember(self, args):
-                    try:
-                        ld.ldap_mod_attr(objconf, "group", "delete", "member", args)
-                        print("Success!")
-                    except (ldap.LDAPError, ValueError) as e:
-                        print(e)
-
-                @shellac.completer(partial(ld.ldap_search, objconf, "group"))
                 def do_rename(self, args):
                     try:
                         ld.ldap_rename(objconf, "group", args)
@@ -320,6 +304,24 @@ def main():
                 @shellac.completer(partial(ld.ldap_search, objconf, "group"))
                 def do_search(self, args):
                     print(ld.ldap_attrs(objconf, "group", args))
+
+                class do_member():
+
+                    @shellac.completer(partial(ld.ldap_search, objconf, "group"))
+                    def do_add(self, args):
+                        try:
+                            ld.ldap_mod_attr(objconf, "group", "add", "member", args)
+                            print("Success!")
+                        except (ldap.LDAPError, ValueError) as e:
+                            print(e)
+
+                    @shellac.completer(partial(ld.ldap_search, objconf, "group"))
+                    def do_delete(self, args):
+                        try:
+                            ld.ldap_mod_attr(objconf, "group", "delete", "member", args)
+                            print("Success!")
+                        except (ldap.LDAPError, ValueError) as e:
+                            print(e)
 
         if len(args) != 0:
             LDAPShell().onecmd(' '.join(args))
