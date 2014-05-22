@@ -150,11 +150,9 @@ class LDAPSession(object):
         obj, itemtype, items = args.split(None, 2)
 
         self._conn.modify_s(self.buildDN(objconf[objtype], obj),
-                            [(getattr(
-                                ldap, "MOD_" + modmethod.upper()),
-                                attr,
-                                [self.buildDN(objconf[itemtype],
-                                              item) for item in items.split()])])
+                            [(getattr(ldap, "MOD_" + modmethod.upper()),
+                              attr,
+                              self.buildDN(objconf[itemtype], item)) for item in items.split()])
 
     def ldap_replace_attr(self, objconf, objtype, args):
 
