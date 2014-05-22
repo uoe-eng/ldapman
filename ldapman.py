@@ -44,7 +44,7 @@ class LDAPSession(object):
         self.open()
         return self
 
-    def ldap_check_schema(self, objconf):
+    def ldap_check_schema(self, objconf, objtype):
 
         if self.schema is None:
             subschemasubentry_dn, self.schema = ldap.schema.urlfetch(
@@ -52,13 +52,13 @@ class LDAPSession(object):
 
         must = []
         may = []
-        for entry in objconf['objectclass']:
+        for entry in objconf[objtype]['objectclass']:
             attrs = self.schema.get_obj(ldap.schema.ObjectClass, entry)
             must.extend(attrs.must)
             may.extend(attrs.may)
         return must, may
 
-    def ldap_search(self, objconf, token,
+    def ldap_search(self, objconf, objtype, token,
                     scope=ldap.SCOPE_SUBTREE, timeout=-1):
 
         try:
@@ -66,9 +66,9 @@ class LDAPSession(object):
         except ConfigParser.Error:
             pass
         try:
-            result = self._conn.search_st(objconf['base'],
+            result = self._conn.search_st(objconf[objtype]['base'],
                                           scope,
-                                          filterstr=objconf['filter'] % (token) + "*",
+                                          filterstr=objconf[objtype]['filter'] % (token) + "*",
                                           timeout=timeout)
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
@@ -77,9 +77,9 @@ class LDAPSession(object):
         # Strip off the base, then parition on = and keep value
         # Could alternatively split on = and keep first value?
         return [x[0].replace(
-            ',' + objconf['base'], '').partition('=')[2] for x in result]
+            ',' + objconf[objtype]['base'], '').partition('=')[2] for x in result]
 
-    def ldap_attrs(self, objconf, token,
+    def ldap_attrs(self, objconf, objtype, token,
                    scope=ldap.SCOPE_SUBTREE, timeout=-1):
 
         try:
@@ -87,16 +87,16 @@ class LDAPSession(object):
         except ConfigParser.Error:
             pass
         try:
-            result = self._conn.search_st(objconf['base'],
+            result = self._conn.search_st(objconf[objtype]['base'],
                                           scope,
-                                          filterstr=objconf['filter'] % (token) + "*",
+                                          filterstr=objconf[objtype]['filter'] % (token) + "*",
                                           timeout=timeout)
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
 
         return pprint.pformat(result)
 
-    def ldap_add(self, objconf, args):
+    def ldap_add(self, objconf, objtype, args):
 
         attrs = {}
         cmdopts = ConfigParser.SafeConfigParser()
@@ -109,13 +109,13 @@ class LDAPSession(object):
         attrs = dict(cmdopts.items('opts'))
 
         # Set objectclass(es) from config file
-        attrs['objectclass'] = objconf['objectclass']
+        attrs['objectclass'] = objconf[objtype]['objectclass']
 
         # Add in any default attrs defined in the config file
-        if objconf['defaultattrs']:
-            attrs.update(objconf['defaultattrs'])
+        if objconf[objtype]['defaultattrs']:
+            attrs.update(objconf[objtype]['defaultattrs'])
 
-        missing = set(objconf['must']).difference(attrs.keys())
+        missing = set(objconf[objtype]['must']).difference(attrs.keys())
         if missing:
             raise ldap.LDAPError(
                 "Missing mandatory attribute(s): %s" % ','.join(missing))
@@ -123,21 +123,24 @@ class LDAPSession(object):
         # Convert the attrs dict into ldif
         ldif = ldap.modlist.addModlist(attrs)
 
-        self._conn.add_s(objconf.buildDN(
-                         attrs[objconf['filter'].partition('=')[0]]), ldif)
+        try:
+            self._conn.add_s(objconf.buildDN(attrs[objconf[objtype]['filter'].partition('=')[0]], objtype), ldif)
+        # TESTING!
+        except Exception as e:
+            print(e)
 
-    def ldap_delete(self, objconf, args):
+    def ldap_delete(self, objconf, objtype, args):
 
         # Delete the entry
-        self._conn.delete_s(objconf.buildDN(args))
+        self._conn.delete_s(objconf.buildDN(args, objtype))
 
-    def ldap_rename(self, objconf, args):
+    def ldap_rename(self, objconf, objtype, args):
 
         name, newname = args.split(' ')
 
         # Rename the entry
-        self._conn.rename_s(objconf.buildDN(name),
-                            objconf['filter'] % (newname))
+        self._conn.rename_s(objconf.buildDN(name, objtype),
+                            objconf[objtype]['filter'] % (newname))
 
     def ldap_mod_attr(self, objconf, objtype, modmethod, attr, args):
 
@@ -219,13 +222,13 @@ def main():
                             objconf[section]['defaultattrs'])
 
                     # Get schema info
-                    objconf[section]['must'], objconf[section]['may'] = ld.ldap_check_schema(objconf[section])
+                    objconf[section]['must'], objconf[section]['may'] = ld.ldap_check_schema(objconf, section)
 
             return objconf
 
-        def complete_add(objconf, token=""):
+        def complete_add(objconf, objtype, token=""):
             return shellac.complete_list(
-                objconf['must'] + objconf['may'], token)
+                objconf[objtype]['must'] + objconf[objtype]['may'], token)
 
         # Create the objconf dict
         objconf = build_objconf()
@@ -237,23 +240,23 @@ def main():
                 def do_add(self, args):
                     print("Method not implemented.")
 
-                @shellac.completer(partial(ld.ldap_search, objconf["user"]))
+                @shellac.completer(partial(ld.ldap_search, objconf, "user"))
                 def do_edit(self, args):
                     print("Method not implemented.")
 
-                @shellac.completer(partial(ld.ldap_search, objconf["user"]))
+                @shellac.completer(partial(ld.ldap_search, objconf, "user"))
                 def do_search(self, args):
                     try:
-                        print(ld.ldap_attrs(objconf["user"], args))
+                        print(ld.ldap_attrs(objconf, "user", args))
                     except shellac.CompletionError:
                         print("Search timed out.")
 
             class do_group():
 
-                @shellac.completer(partial(complete_add, objconf["group"]))
+                @shellac.completer(partial(complete_add, objconf, "group"))
                 def do_add(self, args):
                     try:
-                        ld.ldap_add(objconf["group"], args)
+                        ld.ldap_add(objconf, "group", args)
                         print("Success!")
                     except ldap.LDAPError as e:
                         print(e)
@@ -263,7 +266,7 @@ def main():
                     return "Must: %s\nMay: %s\n" % (
                         ','.join(conf.must), ','.join(conf.may))
 
-                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                @shellac.completer(partial(ld.ldap_search, objconf, "group"))
                 def do_delete(self, args):
 
                     if not options.force:
@@ -282,7 +285,7 @@ def main():
                     conf = objconf["group"]
                     return "Delete an entry (DN)"
 
-                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                @shellac.completer(partial(ld.ldap_search, objconf, "group"))
                 def do_addmember(self, args):
                     try:
                         ld.ldap_mod_attr(objconf, "group", "add", "member", args)
@@ -290,7 +293,7 @@ def main():
                     except (ldap.LDAPError, ValueError) as e:
                         print(e)
 
-                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                @shellac.completer(partial(ld.ldap_search, objconf, "group"))
                 def do_delmember(self, args):
                     try:
                         ld.ldap_mod_attr(objconf, "group", "delete", "member", args)
@@ -298,15 +301,15 @@ def main():
                     except (ldap.LDAPError, ValueError) as e:
                         print(e)
 
-                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                @shellac.completer(partial(ld.ldap_search, objconf, "group"))
                 def do_rename(self, args):
                     try:
-                        ld.ldap_rename(objconf["group"], args)
+                        ld.ldap_rename(objconf, "group", args)
                         print("Success!")
                     except ldap.LDAPError as e:
                         print(e)
 
-                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                @shellac.completer(partial(ld.ldap_search, objconf, "group"))
                 def do_edit(self, args):
                     try:
                         ld.ldap_replace_attr(objconf, "group", args)
@@ -314,9 +317,9 @@ def main():
                     except (ldap.LDAPError, ValueError) as e:
                         print(e)
 
-                @shellac.completer(partial(ld.ldap_search, objconf["group"]))
+                @shellac.completer(partial(ld.ldap_search, objconf, "group"))
                 def do_search(self, args):
-                    print(ld.ldap_attrs(objconf["group"], args))
+                    print(ld.ldap_attrs(objconf, "group", args))
 
         if len(args) != 0:
             LDAPShell().onecmd(' '.join(args))
