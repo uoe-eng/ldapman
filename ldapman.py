@@ -17,8 +17,9 @@ from ast import literal_eval
 
 class LDAPSession(object):
 
-    def __init__(self):
+    def __init__(self, conf):
         self._conn = None
+        self.conf = conf
 
     def open(self):
         self.schema = None
@@ -217,7 +218,7 @@ def main():
 
     # Create the objconf dict
     objconf = LDAPConfig()
-    with LDAPSession() as ld:
+    with LDAPSession(objconf) as ld:
 
         # Get schema info
         for section in config.sections():
