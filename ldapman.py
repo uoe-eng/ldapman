@@ -190,6 +190,23 @@ def parse_config(options):
 
 
 class LDAPConfig(dict):
+    def __init__(self):
+        for section in config.sections():
+            if section != 'global':
+                # Read in all config options
+                self[section] = dict(config.items(section))
+
+                # Some config opts need 'work' before use...
+
+                # Convert objectclass to a list
+                if 'objectclass' in self[section]:
+                    self[section]['objectclass'] = self[section]['objectclass'].split(',')
+
+                # 'safe' eval defaultattrs to extract the dict
+                if 'defaultattrs' in self[section]:
+                    self[section]['defaultattrs'] = literal_eval(
+                        self[section]['defaultattrs'])
+
     def buildDN(self, obj, child=None):
         conf = self[child] if child is not None else self
         return "%s,%s" % (conf['filter'] % (obj),
@@ -198,38 +215,18 @@ class LDAPConfig(dict):
 
 def main():
 
+    # Create the objconf dict
+    objconf = LDAPConfig()
     with LDAPSession() as ld:
 
-        def build_objconf():
-
-            objconf = LDAPConfig()
-            for section in config.sections():
-                if section != 'global':
-                    # Read in all config options
-                    objconf[section] = dict(config.items(section))
-
-                    # Some config opts need 'work' before use...
-
-                    # Convert objectclass to a list
-                    if 'objectclass' in objconf[section]:
-                        objconf[section]['objectclass'] = objconf[section]['objectclass'].split(',')
-
-                    # 'safe' eval defaultattrs to extract the dict
-                    if 'defaultattrs' in objconf[section]:
-                        objconf[section]['defaultattrs'] = literal_eval(
-                            objconf[section]['defaultattrs'])
-
-                    # Get schema info
-                    objconf[section]['must'], objconf[section]['may'] = ld.ldap_check_schema(objconf, section)
-
-            return objconf
+        # Get schema info
+        for section in config.sections():
+            if section != 'global':
+                objconf[section]['must'], objconf[section]['may'] = ld.ldap_check_schema(objconf, section)
 
         def complete_add(objconf, objtype, token=""):
             return shellac.complete_list(
                 objconf[objtype]['must'] + objconf[objtype]['may'], token)
-
-        # Create the objconf dict
-        objconf = build_objconf()
 
         class LDAPShell(shellac.Shellac, object):
 
