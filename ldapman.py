@@ -19,7 +19,6 @@ class LDAPSession(object):
 
     def __init__(self):
         self._conn = None
-        self.closed = True
 
     def open(self):
         self.schema = None
@@ -27,12 +26,11 @@ class LDAPSession(object):
         self._conn = ldap.initialize(self.server)
         sasl = ldap.sasl.gssapi()
         self._conn.sasl_interactive_bind_s('', sasl)
-        self.closed = False
 
     def close(self):
-        if not self.closed:
+        if self._conn is not None:
             self._conn.unbind_s()
-            self.closed = True
+            self._conn = None
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Any thrown exceptions in the context-managed region are ignored.
