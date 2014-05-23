@@ -216,6 +216,9 @@ class LDAPConfig(dict):
 
 def main():
 
+    options, args = parse_opts()
+    config = parse_config(options)
+
     # Create the objconf dict
     objconf = LDAPConfig(config)
     with LDAPSession(objconf) as ld:
@@ -323,10 +326,6 @@ def main():
             LDAPShell().onecmd(' '.join(args))
         else:
             LDAPShell().cmdloop()
-
-
-options, args = parse_opts()
-config = parse_config(options)
 
 
 if __name__ == "__main__":
