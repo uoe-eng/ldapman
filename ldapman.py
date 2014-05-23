@@ -23,7 +23,7 @@ class LDAPSession(object):
 
     def open(self):
         self.schema = None
-        self.server = config.get('global', 'server')
+        self.server = self.conf.globalconf.get('global', 'server')
         self._conn = ldap.initialize(self.server)
         sasl = ldap.sasl.gssapi()
         self._conn.sasl_interactive_bind_s('', sasl)
@@ -61,7 +61,7 @@ class LDAPSession(object):
                     scope=ldap.SCOPE_SUBTREE, timeout=-1):
 
         try:
-            timeout = config.getfloat('global', 'timeout')
+            timeout = self.conf.globalconf.getfloat('global', 'timeout')
         except ConfigParser.Error:
             pass
         try:
@@ -82,7 +82,7 @@ class LDAPSession(object):
                    scope=ldap.SCOPE_SUBTREE, timeout=-1):
 
         try:
-            timeout = config.getfloat('global', 'timeout')
+            timeout = self.conf.globalconf.getfloat('global', 'timeout')
         except ConfigParser.Error:
             pass
         try:
@@ -192,6 +192,7 @@ def parse_config(options):
 
 class LDAPConfig(dict):
     def __init__(self, config):
+        self.globalconf = config
         for section in config.sections():
             if section != 'global':
                 # Read in all config options
