@@ -191,7 +191,7 @@ def parse_config(options):
 
 
 class LDAPConfig(dict):
-    def __init__(self):
+    def __init__(self, config):
         for section in config.sections():
             if section != 'global':
                 # Read in all config options
@@ -217,7 +217,7 @@ class LDAPConfig(dict):
 def main():
 
     # Create the objconf dict
-    objconf = LDAPConfig()
+    objconf = LDAPConfig(config)
     with LDAPSession(objconf) as ld:
 
         # Get schema info
