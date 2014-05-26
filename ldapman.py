@@ -215,6 +215,22 @@ class LDAPConfig(dict):
                           conf['base'])
 
 
+def objtype(objtype):
+    def annotateObjType(cls):
+        orig_init = None
+        if hasattr(cls, '__init__'):
+            orig_init = cls.__init__
+
+        def __init__(self, *args, **kwargs):
+            self.objtype = objtype
+            if orig_init is not None:
+                orig_init(self, *args, **kwargs)
+
+        cls.__init__ = __init__
+        return cls
+    return annotateObjType
+
+
 def main():
 
     options, args = parse_opts()
@@ -251,6 +267,7 @@ def main():
                     except shellac.CompletionError:
                         print("Search timed out.")
 
+            @objtype("group")
             class do_group():
 
                 @shellac.completer(partial(complete_add, "group"))
