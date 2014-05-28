@@ -13,6 +13,7 @@ from contextlib import closing
 from functools import partial
 import io
 from ast import literal_eval
+import inspect
 
 
 class LDAPSession(object):
@@ -249,77 +250,84 @@ def main():
             return shellac.complete_list(
                 objconf[objtype]['must'] + objconf[objtype]['may'], token)
 
+        class LDAPListCommands(object):
+
+            def __init__(self):
+                domethods = [mthdname.partition('_')[2] for mthdname, data
+                             in inspect.getmembers(
+                                 self, predicate=inspect.ismethod)
+                             if mthdname.startswith('do_')]
+
+                for mthd in domethods:
+                    if hasattr(self, 'complete_' + mthd):
+                        getattr(self, 'do_' + mthd).__func__.completions = [getattr(self, 'complete_' + mthd)]
+                    else:
+                        getattr(self, 'do_' + mthd).__func__.completions = [self.complete_default]
+
+            def complete_default(self, token=""):
+                return ld.ldap_search(self.objtype, token)
+
+            def do_add(self, args):
+                try:
+                    ld.ldap_add(self.objtype, args)
+                    print("Success!")
+                except ldap.LDAPError as e:
+                    print(e)
+
+            def complete_add(self, token=""):
+                return shellac.complete_list(
+                    objconf[self.objtype]['must'] + objconf[self.objtype]['may'], token)
+
+            def help_add(self, args):
+                conf = objconf[self.objtype]
+                return "Must: %s\nMay: %s\n" % (
+                    ','.join(conf['must']), ','.join(conf['may']))
+
+            def do_delete(self, args):
+
+                if not options.force:
+                    # prompt for confirmation
+                    if not raw_input(
+                            "Are you sure? (y/n):").lower().startswith('y'):
+                        return
+
+                try:
+                    ld.ldap_delete(self.objtype, args)
+                    print("Success!")
+                except ldap.LDAPError as e:
+                    print(e)
+
+            def help_delete(self, args):
+                return "Delete an entry (DN)"
+
+            def do_rename(self, args):
+                try:
+                    ld.ldap_rename(self.objtype, args)
+                    print("Success!")
+                except ldap.LDAPError as e:
+                    print(e)
+
+            def do_edit(self, args):
+                try:
+                    ld.ldap_replace_attr(self.objtype, args)
+                    print("Success!")
+                except (ldap.LDAPError, ValueError) as e:
+                    print(e)
+
+            def do_search(self, args):
+                try:
+                    print(ld.ldap_attrs(self.objtype, args))
+                except shellac.CompletionError:
+                    print("Search timed out.")
+
         class LDAPShell(shellac.Shellac, object):
 
-            class do_user():
-
-                def do_add(self, args):
-                    print("Method not implemented.")
-
-                @shellac.completer(partial(ld.ldap_search, "user"))
-                def do_edit(self, args):
-                    print("Method not implemented.")
-
-                @shellac.completer(partial(ld.ldap_search, "user"))
-                def do_search(self, args):
-                    try:
-                        print(ld.ldap_attrs("user", args))
-                    except shellac.CompletionError:
-                        print("Search timed out.")
+            @objtype("user")
+            class do_user(LDAPListCommands):
+                pass
 
             @objtype("group")
-            class do_group():
-
-                @shellac.completer(partial(complete_add, "group"))
-                def do_add(self, args):
-                    try:
-                        ld.ldap_add("group", args)
-                        print("Success!")
-                    except ldap.LDAPError as e:
-                        print(e)
-
-                def help_add(self, args):
-                    conf = objconf["group"]
-                    return "Must: %s\nMay: %s\n" % (
-                        ','.join(conf.must), ','.join(conf.may))
-
-                @shellac.completer(partial(ld.ldap_search, "group"))
-                def do_delete(self, args):
-
-                    if not options.force:
-                        # prompt for confirmation
-                        if not raw_input(
-                                "Are you sure? (y/n):").lower().startswith('y'):
-                            return
-
-                    try:
-                        ld.ldap_delete("group", args)
-                        print("Success!")
-                    except ldap.LDAPError as e:
-                        print(e)
-
-                def help_delete(self, args):
-                    return "Delete an entry (DN)"
-
-                @shellac.completer(partial(ld.ldap_search, "group"))
-                def do_rename(self, args):
-                    try:
-                        ld.ldap_rename("group", args)
-                        print("Success!")
-                    except ldap.LDAPError as e:
-                        print(e)
-
-                @shellac.completer(partial(ld.ldap_search, "group"))
-                def do_edit(self, args):
-                    try:
-                        ld.ldap_replace_attr("group", args)
-                        print("Success!")
-                    except (ldap.LDAPError, ValueError) as e:
-                        print(e)
-
-                @shellac.completer(partial(ld.ldap_search, "group"))
-                def do_search(self, args):
-                    print(ld.ldap_attrs("group", args))
+            class do_group(LDAPListCommands):
 
                 class do_member():
 
