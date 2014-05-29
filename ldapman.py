@@ -66,6 +66,10 @@ class LDAPSession(object):
         except ConfigParser.Error:
             pass
         try:
+            scope = getattr(ldap, self.conf[objtype]['scope'])
+        except KeyError as e:
+            pass
+        try:
             result = self._conn.search_st(self.conf[objtype]['base'],
                                           scope,
                                           filterstr=self.conf[objtype]['filter'] % (token) + "*",
