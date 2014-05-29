@@ -100,7 +100,7 @@ class LDAPSession(object):
 
         return pprint.pformat(result)
 
-    def ldap_add(self, objtype, args):
+    def ldap_add(self, objtype, args, extendbase=None):
 
         attrs = {}
         cmdopts = ConfigParser.SafeConfigParser()
@@ -127,9 +127,9 @@ class LDAPSession(object):
         # Convert the attrs dict into ldif
         ldif = ldap.modlist.addModlist(attrs)
 
+        dn = self.conf.buildDN(attrs[self.conf[objtype]['filter'].partition('=')[0]], objtype, extendbase=extendbase)
         try:
-            self._conn.add_s(self.conf.buildDN(attrs[self.conf[objtype]['filter'].partition('=')[0]], objtype), ldif)
-        # TESTING!
+            self._conn.add_s(dn, ldif)
         except Exception as e:
             print(e)
 
@@ -214,10 +214,13 @@ class LDAPConfig(dict):
                     self[section]['defaultattrs'] = literal_eval(
                         self[section]['defaultattrs'])
 
-    def buildDN(self, obj, child=None):
+    def buildDN(self, obj, child=None, extendbase=None):
+        if extendbase is not None:
+            extendbase = extendbase + ','
         conf = self[child] if child is not None else self
-        return "%s,%s" % (conf['filter'] % (obj),
-                          conf['base'])
+        return "%s,%s%s" % (conf['filter'] % (obj),
+                            extendbase,
+                            conf['base'])
 
 
 def objtype(objtype):
@@ -356,6 +359,26 @@ def main():
                             print("Success!")
                         except (ldap.LDAPError, ValueError) as e:
                             print(e)
+
+            @objtype("automount")
+            class do_automount(LDAPListCommands):
+
+                @objtype("automap")
+                class do_map(LDAPListCommands):
+                    pass
+
+                @shellac.completer(partial(ld.ldap_search, "automount"))
+                def do_add(self, args):
+
+                    extendbase = ""
+                    for item in args.split():
+                        if item.startswith('nisMapName'):
+                            extendbase = item
+                    try:
+                        ld.ldap_add(self.objtype, args, extendbase)
+                        print("Success!")
+                    except ldap.LDAPError as e:
+                        print(e)
 
         if len(args) != 0:
             LDAPShell().onecmd(' '.join(args))
