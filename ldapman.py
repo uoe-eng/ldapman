@@ -59,7 +59,7 @@ class LDAPSession(object):
         return must, may
 
     def ldap_search(self, objtype, token,
-                    scope=ldap.SCOPE_SUBTREE, timeout=-1):
+                    scope=ldap.SCOPE_ONELEVEL, timeout=-1):
 
         try:
             timeout = self.conf.globalconf.getfloat('global', 'timeout')
