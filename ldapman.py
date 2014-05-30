@@ -100,7 +100,7 @@ class LDAPSession(object):
 
         return pprint.pformat(result)
 
-    def ldap_add(self, objtype, args, extendbase=None):
+    def ldap_add(self, objtype, args, rdn=None):
 
         attrs = {}
         cmdopts = ConfigParser.SafeConfigParser()
@@ -127,7 +127,9 @@ class LDAPSession(object):
         # Convert the attrs dict into ldif
         ldif = ldap.modlist.addModlist(attrs)
 
-        dn = self.conf.buildDN(attrs[self.conf[objtype]['filter'].partition('=')[0]], objtype, extendbase=extendbase)
+        dn = self.conf.buildDN(
+            attrs[self.conf[objtype]['filter'].partition('=')[0]],
+            objtype, rdn=rdn)
         try:
             self._conn.add_s(dn, ldif)
         except Exception as e:
@@ -214,11 +216,12 @@ class LDAPConfig(dict):
                     self[section]['defaultattrs'] = literal_eval(
                         self[section]['defaultattrs'])
 
-    def buildDN(self, obj, child=None, extendbase=None):
-        extendbase += ',' if extendbase is not None
+    def buildDN(self, obj, child=None, rdn=None):
+        if rdn is not None:
+            rdn += ','
         conf = self[child] if child is not None else self
         return "%s,%s%s" % (conf['filter'] % (obj),
-                            extendbase,
+                            rdn,
                             conf['base'])
 
 
@@ -369,9 +372,9 @@ def main():
                 @shellac.completer(partial(ld.ldap_search, "automount"))
                 def do_add(self, args):
 
-                    extendbase = [x for x in args.split() if x.startswith('nisMapName')][0]
+                    rdn = [x for x in args.split() if x.startswith('nisMapName')][0]
                     try:
-                        ld.ldap_add(self.objtype, args, extendbase)
+                        ld.ldap_add(self.objtype, args, rdn=rdn)
                         print("Success!")
                     except ldap.LDAPError as e:
                         print(e)
