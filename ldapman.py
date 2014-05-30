@@ -215,8 +215,7 @@ class LDAPConfig(dict):
                         self[section]['defaultattrs'])
 
     def buildDN(self, obj, child=None, extendbase=None):
-        if extendbase is not None:
-            extendbase = extendbase + ','
+        extendbase += ',' if extendbase is not None
         conf = self[child] if child is not None else self
         return "%s,%s%s" % (conf['filter'] % (obj),
                             extendbase,
@@ -370,10 +369,7 @@ def main():
                 @shellac.completer(partial(ld.ldap_search, "automount"))
                 def do_add(self, args):
 
-                    extendbase = ""
-                    for item in args.split():
-                        if item.startswith('nisMapName'):
-                            extendbase = item
+                    extendbase = [x for x in args.split() if x.startswith('nisMapName')][0]
                     try:
                         ld.ldap_add(self.objtype, args, extendbase)
                         print("Success!")
