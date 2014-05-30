@@ -100,7 +100,7 @@ class LDAPSession(object):
 
         return pprint.pformat(result)
 
-    def ldap_add(self, objtype, args, rdn=None):
+    def ldap_add(self, objtype, args, rdn=""):
 
         attrs = {}
         cmdopts = ConfigParser.SafeConfigParser()
@@ -216,8 +216,8 @@ class LDAPConfig(dict):
                     self[section]['defaultattrs'] = literal_eval(
                         self[section]['defaultattrs'])
 
-    def buildDN(self, obj, child=None, rdn=None):
-        if rdn is not None:
+    def buildDN(self, obj, child=None, rdn=""):
+        if len(rdn) != 0:
             rdn += ','
         conf = self[child] if child is not None else self
         return "%s,%s%s" % (conf['filter'] % (obj),
