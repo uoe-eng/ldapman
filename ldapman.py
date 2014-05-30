@@ -284,8 +284,16 @@ def main():
 
             def help_add(self, args):
                 conf = objconf[self.objtype]
-                return "Must: %s\nMay: %s\n" % (
-                    ','.join(conf['must']), ','.join(conf['may']))
+                return """
+Add a new entry.
+
+Attributes for this entry:
+Must include: %s
+May include : %s
+
+Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
+                                       ','.join(conf['may']),
+                                       self.objtype)
 
             def do_delete(self, args):
 
@@ -302,7 +310,10 @@ def main():
                     print(e)
 
             def help_delete(self, args):
-                return "Delete an entry (DN)"
+                return """
+Delete an entry.
+
+Usage: %s delete entry""" % (self.objtype)
 
             def do_rename(self, args):
                 try:
@@ -311,6 +322,12 @@ def main():
                 except ldap.LDAPError as e:
                     print(e)
 
+            def help_rename(self, args):
+                return """
+Rename an entry.
+
+Usage: %s rename entry newname""" % (self.objtype)
+
             def do_edit(self, args):
                 try:
                     ld.ldap_replace_attr(self.objtype, args)
@@ -318,17 +335,35 @@ def main():
                 except (ldap.LDAPError, ValueError) as e:
                     print(e)
 
+            def help_edit(self, args):
+                return """
+Change the value of an attribute of an entry.
+
+Usage: %s edit entry attr val""" % (self.objtype)
+
             def do_search(self, args):
                 try:
                     print(ld.ldap_search(self.objtype, args))
                 except shellac.CompletionError:
                     print("Search timed out.")
 
+            def help_search(self, args):
+                return """
+Search for entries which start with a pattern.
+
+Usage: %s search pattern""" % (self.objtype)
+
             def do_show(self, args):
                 try:
                     print(ld.ldap_attrs(self.objtype, args))
                 except shellac.CompletionError:
                     print("Search timed out.")
+
+            def help_show(self, args):
+                return """
+Show the attributes of an entry.
+
+Usage: %s show entry""" % (self.objtype)
 
         class LDAPShell(shellac.Shellac, object):
 
@@ -349,6 +384,15 @@ def main():
                         except (ldap.LDAPError, ValueError) as e:
                             print(e)
 
+                    def help_add(self, args):
+                        return """
+Add an entry to the member attribute for a group.
+
+'type' can be any of the entry types for which a base DN is specified in the configuration.
+
+Usage: group member add type entry
+Example: group member add user josoap"""
+
                     @shellac.completer(partial(ld.ldap_search, "group"))
                     def do_delete(self, args):
                         try:
@@ -356,6 +400,15 @@ def main():
                             print("Success!")
                         except (ldap.LDAPError, ValueError) as e:
                             print(e)
+
+                    def help_delete(self, args):
+                        return """
+Delete an entry from the member attribute for a group.
+
+'type' can be any of the entry types for which a base DN is specified in the configuration.
+
+Usage: group member delete type entry
+Example: group member delete user josoap"""
 
         if len(args) != 0:
             LDAPShell().onecmd(' '.join(args))
