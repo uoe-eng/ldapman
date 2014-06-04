@@ -14,6 +14,7 @@ from functools import partial
 import io
 from ast import literal_eval
 import inspect
+import ldif
 
 
 class LDAPSession(object):
@@ -125,13 +126,13 @@ class LDAPSession(object):
                 "Missing mandatory attribute(s): %s" % ','.join(missing))
 
         # Convert the attrs dict into ldif
-        ldif = ldap.modlist.addModlist(attrs)
+        ldiff = ldap.modlist.addModlist(attrs)
 
         dn = self.conf.buildDN(
             attrs[self.conf[objtype]['filter'].partition('=')[0]],
             objtype, rdn=rdn)
         try:
-            self._conn.add_s(dn, ldif)
+            self._conn.add_s(dn, ldiff)
         except Exception as e:
             print(e)
 
