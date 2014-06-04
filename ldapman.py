@@ -99,7 +99,7 @@ class LDAPSession(object):
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
 
-        return pprint.pformat(result)
+        return result
 
     def ldap_add(self, objtype, args, rdn=""):
 
@@ -360,10 +360,13 @@ Search for entries which start with a pattern.
 Usage: %s search pattern""" % (self.objtype)
 
             def do_show(self, args):
+                pprint.pprint(self.show(args))
+
+            def show(self, args):
                 try:
-                    print(ld.ldap_attrs(self.objtype, args))
+                    return(ld.ldap_attrs(self.objtype, args))
                 except shellac.CompletionError:
-                    print("Search timed out.")
+                    return("Search timed out.")
 
             def help_show(self, args):
                 return """
