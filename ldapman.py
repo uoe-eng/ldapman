@@ -432,6 +432,10 @@ Example: group member delete user josoap"""
                     except ldap.LDAPError as e:
                         print(e)
 
+            @objtype("dyngroup")
+            class do_dyngroup(LDAPListCommands):
+                pass
+
         if len(args) != 0:
             LDAPShell().onecmd(' '.join(args))
         else:
