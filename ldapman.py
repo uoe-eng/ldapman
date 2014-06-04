@@ -14,6 +14,9 @@ from functools import partial
 import io
 from ast import literal_eval
 import inspect
+import os
+import tempfile
+from subprocess import Popen
 import ldif
 
 
@@ -373,6 +376,56 @@ Usage: %s search pattern""" % (self.objtype)
 Show the attributes of an entry.
 
 Usage: %s show entry""" % (self.objtype)
+
+            def do_editor(self, args):
+                fname = ""
+                if len(args) == 0:
+                    args = '*'
+                oldentries = self.show(args)
+                # Parse entries into ldif into a tempfile
+                with tempfile.NamedTemporaryFile(delete=False) as tmpf:
+                    fname = tmpf.name
+                    ldw = ldif.LDIFWriter(tmpf, cols=99999)
+                    for entry in oldentries:
+                        ldw.unparse(*entry)
+
+                # Open the tempfile in an editor
+                editor = os.getenv('EDITOR', "/usr/bin/vi")
+                Popen([editor, fname]).wait()
+
+                # Parse the ldif from tempfile back to (dn, entry)
+                olddict = {}
+                newdict = {}
+                with open(fname, 'r') as tmpf:
+                    ldr = ldif.LDIFRecordList(tmpf)
+                    ldr.parse()
+                    newentries = ldr.all_records
+                    # convert tuples to dicts
+                    olddict = {t[0]: t[1] for t in oldentries}
+                    newdict = {t[0]: t[1] for t in newentries}
+
+                    for dn in newdict:
+                        if dn in olddict:
+                            if olddict[dn] != newdict[dn]:
+                                try:
+                                    ld._conn.modify_s(dn,
+                                                      ldap.modlist.modifyModlist(olddict[dn], newdict[dn]))
+                                except Exception as e:
+                                    print(e)
+                        else:
+                            try:
+                                ld._conn.add_s(dn,
+                                               ldap.modlist.addModlist(newdict[dn]))
+                            except Exception as e:
+                                print(e)
+                    for dn in olddict:
+                        if dn not in newdict:
+                            try:
+                                ld._conn.delete_s(dn)
+                            except Exception as e:
+                                print(e)
+
+                os.unlink(tmpf.name)
 
         class LDAPShell(shellac.Shellac, object):
 
