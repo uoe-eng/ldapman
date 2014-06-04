@@ -10,7 +10,7 @@ import pprint
 import ConfigParser
 from optparse import OptionParser
 from contextlib import closing
-from functools import partial
+from functools import partial, wraps
 import io
 from ast import literal_eval
 import inspect
@@ -18,6 +18,16 @@ import os
 import tempfile
 from subprocess import Popen
 import ldif
+
+
+def printexceptions(func):
+    @wraps(func)
+    def newFunc(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            print(e)
+    return newFunc
 
 
 class LDAPSession(object):
@@ -377,6 +387,7 @@ Show the attributes of an entry.
 
 Usage: %s show entry""" % (self.objtype)
 
+            @printexceptions
             def do_editor(self, args):
                 fname = ""
                 if len(args) == 0:
