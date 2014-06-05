@@ -216,6 +216,7 @@ def parse_config(options):
 
 
 class LDAPConfig(dict):
+
     def __init__(self, config):
         self.globalconf = config
         for section in config.sections():
@@ -244,10 +245,9 @@ class LDAPConfig(dict):
 
 
 def objtype(objtype):
+
     def annotateObjType(cls):
-        orig_init = None
-        if hasattr(cls, '__init__'):
-            orig_init = cls.__init__
+        orig_init = getattr(cls, '__init__', None)
 
         def __init__(self, *args, **kwargs):
             self.objtype = objtype
