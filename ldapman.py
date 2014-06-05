@@ -414,18 +414,18 @@ Usage: %s show entry""" % (self.objtype)
                     tmpf.seek(0, 0)
                     ldr = ldif.LDIFRecordList(tmpf)
                     ldr.parse()
-                    newentries = dict(ldr.all_records)
+                newentries = dict(ldr.all_records)
 
-                    for dn, val in newentries.items():
-                        if dn not in oldentries:
-                            ld._conn.add_s(dn,
-                                           ldap.modlist.addModlist(val))
-                        elif oldentries[dn] != newentries[dn]:
-                            ld._conn.modify_s(dn,
-                                              ldap.modlist.modifyModlist(oldentries[dn], val))
-                    for dn in oldentries:
-                        if dn not in newentries:
-                            ld._conn.delete_s(dn)
+                for dn, val in newentries.items():
+                    if dn not in oldentries:
+                        ld._conn.add_s(dn,
+                                       ldap.modlist.addModlist(val))
+                    elif oldentries[dn] != newentries[dn]:
+                        ld._conn.modify_s(dn,
+                                          ldap.modlist.modifyModlist(oldentries[dn], val))
+                for dn in oldentries:
+                    if dn not in newentries:
+                        ld._conn.delete_s(dn)
 
         class LDAPShell(shellac.Shellac, object):
 
