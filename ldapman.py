@@ -65,6 +65,8 @@ class LDAPSession(object):
         if self.schema is None:
             subschemasubentry_dn, self.schema = ldap.schema.urlfetch(
                 self.server)
+        if self.schema is None:
+            raise Exception("Could not fetch schema.")
 
         must = []
         may = []
