@@ -16,7 +16,8 @@ from ast import literal_eval
 import inspect
 import os
 import tempfile
-from subprocess import Popen
+import subprocess
+import fcntl
 import ldif
 
 
@@ -393,54 +394,38 @@ Usage: %s show entry""" % (self.objtype)
 
             @printexceptions
             def do_editor(self, args):
-                fname = ""
                 if len(args) == 0:
                     args = '*'
-                oldentries = self.show(args)
+                oldentries = dict(self.show(args))
                 # Parse entries into ldif into a tempfile
-                with tempfile.NamedTemporaryFile(delete=False) as tmpf:
-                    fname = tmpf.name
+                with tempfile.TemporaryFile() as tmpf:
                     ldw = ldif.LDIFWriter(tmpf, cols=99999)
-                    for entry in oldentries:
+                    for entry in oldentries.items():
                         ldw.unparse(*entry)
 
-                # Open the tempfile in an editor
-                editor = os.getenv('EDITOR', "/usr/bin/vi")
-                Popen([editor, fname]).wait()
+                    tmpf.seek(0, 0)
+                    fcntl.fcntl(tmpf.fileno(), fcntl.F_SETFD, 0) # clear FD_CLOEXEC
+                    # Open the tempfile in an editor
+                    if subprocess.call([os.getenv('EDITOR', "/usr/bin/vi"),
+                                        '/dev/fd/%d' % tmpf.fileno()]) != 0:
+                        return
 
-                # Parse the ldif from tempfile back to (dn, entry)
-                olddict = {}
-                newdict = {}
-                with open(fname, 'r') as tmpf:
+                    # Parse the ldif from tempfile back to (dn, entry)
+                    tmpf.seek(0, 0)
                     ldr = ldif.LDIFRecordList(tmpf)
                     ldr.parse()
-                    newentries = ldr.all_records
-                    # convert tuples to dicts
-                    olddict = {t[0]: t[1] for t in oldentries}
-                    newdict = {t[0]: t[1] for t in newentries}
+                    newentries = dict(ldr.all_records)
 
-                    for dn in newdict:
-                        if dn in olddict:
-                            if olddict[dn] != newdict[dn]:
-                                try:
-                                    ld._conn.modify_s(dn,
-                                                      ldap.modlist.modifyModlist(olddict[dn], newdict[dn]))
-                                except Exception as e:
-                                    print(e)
-                        else:
-                            try:
-                                ld._conn.add_s(dn,
-                                               ldap.modlist.addModlist(newdict[dn]))
-                            except Exception as e:
-                                print(e)
-                    for dn in olddict:
-                        if dn not in newdict:
-                            try:
-                                ld._conn.delete_s(dn)
-                            except Exception as e:
-                                print(e)
-
-                os.unlink(tmpf.name)
+                    for dn, val in newentries.items():
+                        if dn not in oldentries:
+                            ld._conn.add_s(dn,
+                                           ldap.modlist.addModlist(val))
+                        elif oldentries[dn] != newentries[dn]:
+                            ld._conn.modify_s(dn,
+                                              ldap.modlist.modifyModlist(oldentries[dn], val))
+                    for dn in oldentries:
+                        if dn not in newentries:
+                            ld._conn.delete_s(dn)
 
         class LDAPShell(shellac.Shellac, object):
 
