@@ -21,12 +21,14 @@ import ldif
 
 
 def printexceptions(func):
+
     @wraps(func)
     def newFunc(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            print(e)
+            print sys.exc_info()[0]
+            raise
     return newFunc
 
 
