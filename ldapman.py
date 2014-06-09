@@ -202,11 +202,9 @@ def parse_opts():
     parser = OptionParser()
     parser.add_option("-c", "--config", dest="config",
                       help="Path to configuration file")
-
     parser.add_option("-f", "--force", dest="force",
                       action="store_true", default=False,
                       help="Don't prompt for confirmation for operations")
-
     return parser.parse_args()
 
 
@@ -316,7 +314,7 @@ def main():
 
             def help_add(self, args):
                 conf = objconf[self.objtype]
-                return """
+                return """\
 Add a new entry.
 
 Attributes for this entry:
@@ -339,7 +337,7 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
                     ld.ldap_delete(self.objtype, args)
 
             def help_delete(self, args):
-                return """
+                return """\
 Delete an entry.
 
 Usage: %s delete entry""" % (self.objtype)
@@ -349,7 +347,7 @@ Usage: %s delete entry""" % (self.objtype)
                 ld.ldap_rename(self.objtype, args)
 
             def help_rename(self, args):
-                return """
+                return """\
 Rename an entry.
 
 Usage: %s rename entry newname""" % (self.objtype)
@@ -359,7 +357,7 @@ Usage: %s rename entry newname""" % (self.objtype)
                 ld.ldap_replace_attr(self.objtype, args)
 
             def help_edit(self, args):
-                return """
+                return """\
 Change the value of an attribute of an entry.
 
 Usage: %s edit entry attr val""" % (self.objtype)
@@ -371,7 +369,7 @@ Usage: %s edit entry attr val""" % (self.objtype)
                     print("Search timed out.")
 
             def help_search(self, args):
-                return """
+                return """\
 Search for entries which start with a pattern.
 
 Usage: %s search pattern""" % (self.objtype)
@@ -386,7 +384,7 @@ Usage: %s search pattern""" % (self.objtype)
                     return "Search timed out."
 
             def help_show(self, args):
-                return """
+                return """\
 Show the attributes of an entry.
 
 Usage: %s show entry""" % (self.objtype)
