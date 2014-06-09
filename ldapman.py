@@ -9,7 +9,6 @@ import sys
 import pprint
 import ConfigParser
 from optparse import OptionParser
-from contextlib import closing
 from functools import partial, wraps
 import io
 from ast import literal_eval
