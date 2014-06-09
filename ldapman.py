@@ -258,23 +258,7 @@ class LDAPConfig(dict):
                             conf['base'])
 
 
-def objtype(objtype):
-
-    def annotateObjType(cls):
-        orig_init = getattr(cls, '__init__', None)
-
-        def __init__(self, *args, **kwargs):
-            self.objtype = objtype
-            if orig_init is not None:
-                orig_init(self, *args, **kwargs)
-
-        cls.__init__ = __init__
-        return cls
-    return annotateObjType
-
-
 def main():
-
     options, args = parse_opts()
     config = parse_config(options)
 
@@ -289,9 +273,21 @@ def main():
             if section != 'global':
                 objconf[section]['must'], objconf[section]['may'] = ld.ldap_check_schema(section)
 
-        def complete_add(objtype, token=""):
-            return shellac.complete_list(
-                objconf[objtype]['must'] + objconf[objtype]['may'], token)
+        # Create a decorator for LDAPListCommands subclasses.
+        def objtype(objtype):
+            """Decorator to add an "objtype" attribute to a class."""
+
+            def annotateObjType(cls):
+                orig_init = getattr(cls, '__init__', None)
+
+                def __init__(self, *args, **kwargs):
+                    if orig_init is not None:
+                        orig_init(self, *args, **kwargs)
+                    self.objtype = objtype
+
+                cls.__init__ = __init__
+                return cls
+            return annotateObjType
 
         class LDAPListCommands(object):
             """Abstract class for LDAP entries with a "list" interface."""
