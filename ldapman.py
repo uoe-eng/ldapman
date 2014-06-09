@@ -22,6 +22,10 @@ import ldif
 
 
 def printexceptions(func):
+    """Decorate the given function so that in debugging mode all unhandled
+    tracebacks are printed and re-raised.
+
+    """
 
     @wraps(func)
     def newFunc(*args, **kwargs):
@@ -34,12 +38,15 @@ def printexceptions(func):
 
 
 class LDAPSession(object):
+    """Container object for connection to an LDAP server."""
 
     def __init__(self, conf):
         self._conn = None
         self.conf = conf
 
     def open(self):
+        """Make a connection to the LDAP server."""
+
         self.schema = None
         self.server = self.conf.globalconf.get('global', 'server')
         self._conn = ldap.initialize(self.server)
@@ -47,6 +54,8 @@ class LDAPSession(object):
         self._conn.sasl_interactive_bind_s('', sasl)
 
     def close(self):
+        """Close the connection to the LDAP server, if one exists."""
+
         if self._conn is not None:
             self._conn.unbind_s()
             self._conn = None
@@ -62,6 +71,10 @@ class LDAPSession(object):
         return self
 
     def ldap_check_schema(self, objtype):
+        """Retrieve the schema from the server, returning (must, may) lists
+        of required and optional attributes of the requested objectclass.
+
+        """
 
         if self.schema is None:
             subschemasubentry_dn, self.schema = ldap.schema.urlfetch(
@@ -79,6 +92,7 @@ class LDAPSession(object):
 
     def ldap_search(self, objtype, token,
                     scope=ldap.SCOPE_ONELEVEL, timeout=-1):
+        """Search the tree for a matching entry."""
 
         try:
             timeout = self.conf.globalconf.getfloat('global', 'timeout')
@@ -104,6 +118,7 @@ class LDAPSession(object):
 
     def ldap_attrs(self, objtype, token,
                    scope=ldap.SCOPE_SUBTREE, timeout=-1):
+        """Get the attributes of an object."""
 
         try:
             timeout = self.conf.globalconf.getfloat('global', 'timeout')
@@ -120,6 +135,7 @@ class LDAPSession(object):
         return result
 
     def ldap_add(self, objtype, args, rdn=""):
+        """Add an entry. rdn is an optional prefix to the DN."""
 
         attrs = {}
         cmdopts = ConfigParser.SafeConfigParser()
@@ -155,11 +171,11 @@ class LDAPSession(object):
             print(e)
 
     def ldap_delete(self, objtype, args):
-
-        # Delete the entry
+        """Delete an entry by name."""
         self._conn.delete_s(self.conf.buildDN(args, objtype))
 
     def ldap_rename(self, objtype, args):
+        """Rename an object. args must be 'name newname'."""
 
         name, newname = args.split(' ')
 
@@ -168,8 +184,11 @@ class LDAPSession(object):
                             self.conf[objtype]['filter'] % (newname))
 
     def ldap_mod_attr(self, objtype, modmethod, attr, args):
+        """Modify an attribute. args must be of the form
 
-        """Expects args to be of form 'object, items type, item1, item2...'"""
+        'object itemtype item1 item2...'
+
+        """
 
         obj, itemtype, items = args.split(None, 2)
 
@@ -180,8 +199,11 @@ class LDAPSession(object):
                                 for item in items.split()])
 
     def ldap_replace_attr(self, objtype, args):
+        """Replace an object. args must be
 
-        """Expects args to be the object, the attr to modify, and the replacement value."""
+        'object attr replacementvalue'
+
+        """
 
         obj, attr, value = args.split()
 
@@ -217,6 +239,15 @@ def parse_config(options):
 
 
 class LDAPConfig(dict):
+    """Store the config data for an LDAPSession object.
+
+    These data come from the config file, with some special processing for
+    things which look like lists or dicts.
+
+    Include a convenient method, buildDN, to create a DN given an object class,
+    optional base DN from the config and optional RDN.
+
+    """
 
     def __init__(self, config):
         self.globalconf = config
@@ -267,9 +298,11 @@ def main():
 
     # Create the objconf dict
     objconf = LDAPConfig(config)
+
+    # Bind the LDAP, so that our shell objects can access it
     with LDAPSession(objconf) as ld:
 
-        # Get schema info
+        # Get schema info from the LDAP
         for section in config.sections():
             if section != 'global':
                 objconf[section]['must'], objconf[section]['may'] = ld.ldap_check_schema(section)
@@ -279,6 +312,7 @@ def main():
                 objconf[objtype]['must'] + objconf[objtype]['may'], token)
 
         class LDAPListCommands(object):
+            """Abstract class for LDAP entries with a "list" interface."""
 
             def __init__(self):
                 domethods = [mthdname.partition('_')[2] for mthdname, data
@@ -410,7 +444,7 @@ Usage: %s show entry""" % (self.objtype)
                                         '/dev/fd/%d' % tmpf.fileno()]) != 0:
                         return
 
-                    # Parse the ldif from tempfile back to (dn, entry)
+                    # Parse the ldif from tempfile back to (dn, entry), then close it
                     tmpf.seek(0, 0)
                     ldr = ldif.LDIFRecordList(tmpf)
                     ldr.parse()
