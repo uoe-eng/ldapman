@@ -40,7 +40,7 @@ class LDAPSession(object):
     """Container object for connection to an LDAP server."""
 
     def __init__(self, conf):
-        self._conn = None
+        self.conn = None
         self.conf = conf
         self.schema = None
         self.server = None
@@ -49,16 +49,16 @@ class LDAPSession(object):
         """Make a connection to the LDAP server."""
 
         self.server = self.conf.globalconf.get('global', 'server')
-        self._conn = ldap.initialize(self.server)
+        self.conn = ldap.initialize(self.server)
         sasl = ldap.sasl.gssapi()
-        self._conn.sasl_interactive_bind_s('', sasl)
+        self.conn.sasl_interactive_bind_s('', sasl)
 
     def close(self):
         """Close the connection to the LDAP server, if one exists."""
 
-        if self._conn is not None:
-            self._conn.unbind_s()
-            self._conn = None
+        if self.conn is not None:
+            self.conn.unbind_s()
+            self.conn = None
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Any thrown exceptions in the context-managed region are ignored.
@@ -98,10 +98,10 @@ class LDAPSession(object):
         except KeyError:
             scope = ldap.SCOPE_ONELEVEL
         try:
-            result = self._conn.search_st(self.conf[objtype]['base'],
-                                          scope,
-                                          filterstr=self.conf[objtype]['filter'] % (token) + "*",
-                                          timeout=timeout)
+            result = self.conn.search_st(self.conf[objtype]['base'],
+                                         scope,
+                                         filterstr=self.conf[objtype]['filter'] % (token) + "*",
+                                         timeout=timeout)
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
 
@@ -116,10 +116,10 @@ class LDAPSession(object):
 
         timeout = float(self.conf.globalconf.get('global', 'timeout', vars={'timeout': '-1'}))
         try:
-            return self._conn.search_st(self.conf[objtype]['base'],
-                                        ldap.SCOPE_ONELEVEL,
-                                        filterstr=self.conf[objtype]['filter'] % (token),
-                                        timeout=timeout)
+            return self.conn.search_st(self.conf[objtype]['base'],
+                                       ldap.SCOPE_ONELEVEL,
+                                       filterstr=self.conf[objtype]['filter'] % (token),
+                                       timeout=timeout)
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
 
@@ -154,19 +154,19 @@ class LDAPSession(object):
         dn = self.conf.buildDN(
             attrs[self.conf[objtype]['filter'].partition('=')[0]],
             objtype, rdn=rdn)
-        self._conn.add_s(dn, ldiff)
+        self.conn.add_s(dn, ldiff)
 
     def ldap_delete(self, objtype, args):
         """Delete an entry by name."""
-        self._conn.delete_s(self.conf.buildDN(args, objtype))
+        self.conn.delete_s(self.conf.buildDN(args, objtype))
 
     def ldap_rename(self, objtype, args):
         """Rename an object. args must be 'name newname'."""
 
         name, newname = args.split()
 
-        self._conn.rename_s(self.conf.buildDN(name, objtype),
-                            self.conf[objtype]['filter'] % (newname))
+        self.conn.rename_s(self.conf.buildDN(name, objtype),
+                           self.conf[objtype]['filter'] % (newname))
 
     def ldap_mod_attr(self, objtype, modmethod, attr, args):
         """Modify an attribute. args must be of the form
@@ -177,11 +177,11 @@ class LDAPSession(object):
 
         obj, itemtype, items = args.split(None, 2)
 
-        self._conn.modify_s(self.conf.buildDN(obj, child=objtype),
-                            [(getattr(ldap, "MOD_" + modmethod.upper()),
-                              attr,
-                              self.conf.buildDN(item, child=itemtype))
-                                for item in items.split()])
+        self.conn.modify_s(self.conf.buildDN(obj, child=objtype),
+                           [(getattr(ldap, "MOD_" + modmethod.upper()),
+                             attr,
+                             self.conf.buildDN(item, child=itemtype))
+                               for item in items.split()])
 
     def ldap_replace_attr(self, objtype, args):
         """Replace an object. args must be
@@ -192,8 +192,8 @@ class LDAPSession(object):
 
         obj, attr, value = args.split()
 
-        self._conn.modify_s(self.conf.buildDN(obj, child=objtype),
-                            [(ldap.MOD_REPLACE, attr, value)])
+        self.conn.modify_s(self.conf.buildDN(obj, child=objtype),
+                           [(ldap.MOD_REPLACE, attr, value)])
 
 
 def parse_opts():
@@ -409,14 +409,14 @@ Usage: %s show entry""" % (self.objtype)
 
                 for dn, val in newentries.items():
                     if dn not in oldentries:
-                        ld._conn.add_s(dn,
-                                       ldap.modlist.addModlist(val))
+                        ld.conn.add_s(dn,
+                                      ldap.modlist.addModlist(val))
                     elif oldentries[dn] != newentries[dn]:
-                        ld._conn.modify_s(dn,
-                                          ldap.modlist.modifyModlist(oldentries[dn], val))
+                        ld.conn.modify_s(dn,
+                                         ldap.modlist.modifyModlist(oldentries[dn], val))
                 for dn in oldentries:
                     if dn not in newentries:
-                        ld._conn.delete_s(dn)
+                        ld.conn.delete_s(dn)
 
         class LDAPShell(shellac.Shellac, object):
 
