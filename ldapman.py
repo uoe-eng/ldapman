@@ -28,13 +28,13 @@ def printexceptions(func):
     """
 
     @wraps(func)
-    def newFunc(*args, **kwargs):
+    def new_func(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except Exception as e:
-            print sys.exc_info()[0]
+        except Exception:
+            print(sys.exc_info()[0])
             raise
-    return newFunc
+    return new_func
 
 
 class LDAPSession(object):
@@ -43,11 +43,12 @@ class LDAPSession(object):
     def __init__(self, conf):
         self._conn = None
         self.conf = conf
+        self.schema = None
+        self.server = None
 
     def open(self):
         """Make a connection to the LDAP server."""
 
-        self.schema = None
         self.server = self.conf.globalconf.get('global', 'server')
         self._conn = ldap.initialize(self.server)
         sasl = ldap.sasl.gssapi()
@@ -77,8 +78,7 @@ class LDAPSession(object):
         """
 
         if self.schema is None:
-            subschemasubentry_dn, self.schema = ldap.schema.urlfetch(
-                self.server)
+            _, self.schema = ldap.schema.urlfetch(self.server)
         if self.schema is None:
             raise Exception("Could not fetch schema.")
 
@@ -137,7 +137,6 @@ class LDAPSession(object):
     def ldap_add(self, objtype, args, rdn=""):
         """Add an entry. rdn is an optional prefix to the DN."""
 
-        attrs = {}
         cmdopts = ConfigParser.SafeConfigParser()
         # Preserve case of keys
         cmdopts.optionxform = str
@@ -177,9 +176,8 @@ class LDAPSession(object):
     def ldap_rename(self, objtype, args):
         """Rename an object. args must be 'name newname'."""
 
-        name, newname = args.split(' ')
+        name, newname = args.split()
 
-        # Rename the entry
         self._conn.rename_s(self.conf.buildDN(name, objtype),
                             self.conf[objtype]['filter'] % (newname))
 
@@ -229,12 +227,8 @@ def parse_config(options):
     """Read in a config file"""
 
     config = ConfigParser.SafeConfigParser()
-    # FIX: Change to a better default
-    config_file = 'ldapman.conf'
-    if options.config:
-        config_file = options.config
-    config.read(config_file)
-
+    # FIXME(mrichar1): Change to a better default
+    config.read(options.config or 'ldapman.conf')
     return config
 
 
@@ -250,6 +244,7 @@ class LDAPConfig(dict):
     """
 
     def __init__(self, config):
+        super(LDAPConfig, self).__init__(self)
         self.globalconf = config
         for section in config.sections():
             if section != 'global':
@@ -315,16 +310,15 @@ def main():
             """Abstract class for LDAP entries with a "list" interface."""
 
             def __init__(self):
-                domethods = [mthdname.partition('_')[2] for mthdname, data
+                self.objtype = None
+                domethods = [mthdname.partition('_')[2] for mthdname, _
                              in inspect.getmembers(
                                  self, predicate=inspect.ismethod)
                              if mthdname.startswith('do_')]
 
                 for mthd in domethods:
-                    if hasattr(self, 'complete_' + mthd):
-                        getattr(self, 'do_' + mthd).__func__.completions = [getattr(self, 'complete_' + mthd)]
-                    else:
-                        getattr(self, 'do_' + mthd).__func__.completions = [self.complete_default]
+                    getattr(self, 'do_' + mthd).__func__.completions = [
+                        getattr(self, 'complete_' + mthd, self.complete_default)]
 
             def complete_default(self, token=""):
                 return ld.ldap_search(self.objtype, token)
@@ -416,9 +410,9 @@ Usage: %s search pattern""" % (self.objtype)
 
             def show(self, args):
                 try:
-                    return(ld.ldap_attrs(self.objtype, args))
+                    return ld.ldap_attrs(self.objtype, args)
                 except shellac.CompletionError:
-                    return("Search timed out.")
+                    return "Search timed out."
 
             def help_show(self, args):
                 return """
@@ -428,9 +422,7 @@ Usage: %s show entry""" % (self.objtype)
 
             @printexceptions
             def do_editor(self, args):
-                if len(args) == 0:
-                    args = '*'
-                oldentries = dict(self.show(args))
+                oldentries = dict(self.show(args or '*'))
                 # Parse entries into ldif into a tempfile
                 with tempfile.TemporaryFile() as tmpf:
                     ldw = ldif.LDIFWriter(tmpf, cols=99999)
@@ -438,7 +430,7 @@ Usage: %s show entry""" % (self.objtype)
                         ldw.unparse(*entry)
 
                     tmpf.seek(0, 0)
-                    fcntl.fcntl(tmpf.fileno(), fcntl.F_SETFD, 0) # clear FD_CLOEXEC
+                    fcntl.fcntl(tmpf.fileno(), fcntl.F_SETFD, 0)  # clear FD_CLOEXEC
                     # Open the tempfile in an editor
                     if subprocess.call([os.getenv('EDITOR', "/usr/bin/vi"),
                                         '/dev/fd/%d' % tmpf.fileno()]) != 0:
