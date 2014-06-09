@@ -327,13 +327,9 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
 
             @printexceptions
             def do_delete(self, args):
-
-                if not options.force:
-                    # prompt for confirmation
-                    if not raw_input(
-                            "Are you sure? (y/n):").lower().startswith('y'):
-                        return
-
+                # prompt for confirmation
+                if options.force or raw_input(
+                        "Are you sure? (y/n):").lower().startswith('y'):
                     ld.ldap_delete(self.objtype, args)
 
             def help_delete(self, args):
