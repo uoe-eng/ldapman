@@ -123,6 +123,7 @@ class LDAPSession(object):
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
 
+    @printexceptions
     def ldap_add(self, objtype, args, rdn=""):
         """Add an entry. rdn is an optional prefix to the DN."""
 
@@ -153,10 +154,7 @@ class LDAPSession(object):
         dn = self.conf.buildDN(
             attrs[self.conf[objtype]['filter'].partition('=')[0]],
             objtype, rdn=rdn)
-        try:
-            self._conn.add_s(dn, ldiff)
-        except Exception as e:
-            print(e)
+        self._conn.add_s(dn, ldiff)
 
     def ldap_delete(self, objtype, args):
         """Delete an entry by name."""
@@ -312,12 +310,9 @@ def main():
             def complete_default(self, token=""):
                 return ld.ldap_search(self.objtype, token)
 
+            @printexceptions
             def do_add(self, args):
-                try:
-                    ld.ldap_add(self.objtype, args)
-                    print("Success!")
-                except ldap.LDAPError as e:
-                    print(e)
+                ld.ldap_add(self.objtype, args)
 
             def complete_add(self, token=""):
                 return shellac.complete_list(
@@ -336,6 +331,7 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
                                        ','.join(conf['may']),
                                        self.objtype)
 
+            @printexceptions
             def do_delete(self, args):
 
                 if not options.force:
@@ -344,11 +340,7 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
                             "Are you sure? (y/n):").lower().startswith('y'):
                         return
 
-                try:
                     ld.ldap_delete(self.objtype, args)
-                    print("Success!")
-                except ldap.LDAPError as e:
-                    print(e)
 
             def help_delete(self, args):
                 return """
@@ -356,12 +348,9 @@ Delete an entry.
 
 Usage: %s delete entry""" % (self.objtype)
 
+            @printexceptions
             def do_rename(self, args):
-                try:
-                    ld.ldap_rename(self.objtype, args)
-                    print("Success!")
-                except ldap.LDAPError as e:
-                    print(e)
+                ld.ldap_rename(self.objtype, args)
 
             def help_rename(self, args):
                 return """
@@ -369,12 +358,9 @@ Rename an entry.
 
 Usage: %s rename entry newname""" % (self.objtype)
 
+            @printexceptions
             def do_edit(self, args):
-                try:
-                    ld.ldap_replace_attr(self.objtype, args)
-                    print("Success!")
-                except (ldap.LDAPError, ValueError) as e:
-                    print(e)
+                ld.ldap_replace_attr(self.objtype, args)
 
             def help_edit(self, args):
                 return """
@@ -454,12 +440,9 @@ Usage: %s show entry""" % (self.objtype)
                 class do_member():
 
                     @shellac.completer(partial(ld.ldap_search, "group"))
-                    def do_add(self, args):
-                        try:
-                            ld.ldap_mod_attr("group", "add", "member", args)
-                            print("Success!")
-                        except (ldap.LDAPError, ValueError) as e:
-                            print(e)
+                    @printexceptions
+                    def do_add(args):
+                        ld.ldap_mod_attr("group", "add", "member", args)
 
                     def help_add(self, args):
                         return """
@@ -471,12 +454,9 @@ Usage: group member add type entry
 Example: group member add user josoap"""
 
                     @shellac.completer(partial(ld.ldap_search, "group"))
-                    def do_delete(self, args):
-                        try:
-                            ld.ldap_mod_attr("group", "delete", "member", args)
-                            print("Success!")
-                        except (ldap.LDAPError, ValueError) as e:
-                            print(e)
+                    @printexceptions
+                    def do_delete(args):
+                        ld.ldap_mod_attr("group", "delete", "member", args)
 
                     def help_delete(self, args):
                         return """
@@ -495,14 +475,10 @@ Example: group member delete user josoap"""
                     pass
 
                 @shellac.completer(partial(ld.ldap_search, "automount"))
+                @printexceptions
                 def do_add(self, args):
-
                     rdn = [x for x in args.split() if x.startswith('nisMapName')][0]
-                    try:
-                        ld.ldap_add(self.objtype, args, rdn=rdn)
-                        print("Success!")
-                    except ldap.LDAPError as e:
-                        print(e)
+                    ld.ldap_add(self.objtype, args, rdn=rdn)
 
             @objtype("dyngroup")
             class do_dyngroup(LDAPListCommands):
