@@ -90,18 +90,14 @@ class LDAPSession(object):
             may.extend(attrs.may)
         return must, may
 
-    def ldap_search(self, objtype, token,
-                    scope=ldap.SCOPE_ONELEVEL, timeout=-1):
+    def ldap_search(self, objtype, token):
         """Search the tree for a matching entry."""
 
-        try:
-            timeout = self.conf.globalconf.getfloat('global', 'timeout')
-        except ConfigParser.Error:
-            pass
+        timeout = float(self.conf.globalconf.get('global', 'timeout', vars={'timeout': '-1'}))
         try:
             scope = getattr(ldap, self.conf[objtype]['scope'])
-        except KeyError as e:
-            pass
+        except KeyError:
+            scope = ldap.SCOPE_ONELEVEL
         try:
             result = self._conn.search_st(self.conf[objtype]['base'],
                                           scope,
@@ -116,23 +112,17 @@ class LDAPSession(object):
         return [x[0].replace(
             ',' + self.conf[objtype]['base'], '').partition('=')[2] for x in result]
 
-    def ldap_attrs(self, objtype, token,
-                   scope=ldap.SCOPE_SUBTREE, timeout=-1):
+    def ldap_attrs(self, objtype, token):
         """Get the attributes of an object."""
 
+        timeout = float(self.conf.globalconf.get('global', 'timeout', vars={'timeout': '-1'}))
         try:
-            timeout = self.conf.globalconf.getfloat('global', 'timeout')
-        except ConfigParser.Error:
-            pass
-        try:
-            result = self._conn.search_st(self.conf[objtype]['base'],
-                                          scope,
-                                          filterstr=self.conf[objtype]['filter'] % (token),
-                                          timeout=timeout)
+            return self._conn.search_st(self.conf[objtype]['base'],
+                                        ldap.SCOPE_ONELEVEL,
+                                        filterstr=self.conf[objtype]['filter'] % (token),
+                                        timeout=timeout)
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
-
-        return result
 
     def ldap_add(self, objtype, args, rdn=""):
         """Add an entry. rdn is an optional prefix to the DN."""
