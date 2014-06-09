@@ -431,11 +431,13 @@ Usage: %s show entry""" % (self.objtype)
 
                     @shellac.completer(partial(ld.ldap_search, "group"))
                     @printexceptions
+                    @staticmethod
                     def do_add(args):
                         ld.ldap_mod_attr("group", "add", "member", args)
 
-                    def help_add(self, args):
-                        return """
+                    @staticmethod
+                    def help_add(args):
+                        return """\
 Add an entry to the member attribute for a group.
 
 'type' can be any of the entry types for which a base DN is specified in the configuration.
@@ -445,11 +447,13 @@ Example: group member add user josoap"""
 
                     @shellac.completer(partial(ld.ldap_search, "group"))
                     @printexceptions
+                    @staticmethod
                     def do_delete(args):
                         ld.ldap_mod_attr("group", "delete", "member", args)
 
-                    def help_delete(self, args):
-                        return """
+                    @staticmethod
+                    def help_delete(args):
+                        return """\
 Delete an entry from the member attribute for a group.
 
 'type' can be any of the entry types for which a base DN is specified in the configuration.
