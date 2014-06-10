@@ -256,65 +256,56 @@ class LDAPConfig(dict):
                             conf['base'])
 
 
-def main():
-    options, args = parse_opts()
-    config = parse_config(options)
+def shell_factory(ld, config, options, objconf):
+    # Get schema info from the LDAP
+    for section in config.sections():
+        if section != 'global':
+            objconf[section]['must'], objconf[section]['may'] = ld.ldap_check_schema(section)
 
-    # Create the objconf dict
-    objconf = LDAPConfig(config)
+    # Create a decorator for LDAPListCommands subclasses.
+    def objtype(objtype):
+        """Decorator to add an "objtype" attribute to a class."""
 
-    # Bind the LDAP, so that our shell objects can access it
-    with LDAPSession(objconf) as ld:
+        def annotateObjType(cls):
+            orig_init = getattr(cls, '__init__', None)
 
-        # Get schema info from the LDAP
-        for section in config.sections():
-            if section != 'global':
-                objconf[section]['must'], objconf[section]['may'] = ld.ldap_check_schema(section)
+            def __init__(self, *args, **kwargs):
+                if orig_init is not None:
+                    orig_init(self, *args, **kwargs)
+                self.objtype = objtype
 
-        # Create a decorator for LDAPListCommands subclasses.
-        def objtype(objtype):
-            """Decorator to add an "objtype" attribute to a class."""
+            cls.__init__ = __init__
+            return cls
+        return annotateObjType
 
-            def annotateObjType(cls):
-                orig_init = getattr(cls, '__init__', None)
+    class LDAPListCommands(object):
+        """Abstract class for LDAP entries with a "list" interface."""
 
-                def __init__(self, *args, **kwargs):
-                    if orig_init is not None:
-                        orig_init(self, *args, **kwargs)
-                    self.objtype = objtype
+        def __init__(self):
+            self.objtype = None
+            domethods = [mthdname.partition('_')[2] for mthdname, _
+                         in inspect.getmembers(
+                             self, predicate=inspect.ismethod)
+                         if mthdname.startswith('do_')]
 
-                cls.__init__ = __init__
-                return cls
-            return annotateObjType
+            for mthd in domethods:
+                getattr(self, 'do_' + mthd).__func__.completions = [
+                    getattr(self, 'complete_' + mthd, self.complete_default)]
 
-        class LDAPListCommands(object):
-            """Abstract class for LDAP entries with a "list" interface."""
+        def complete_default(self, token=""):
+            return ld.ldap_search(self.objtype, token)
 
-            def __init__(self):
-                self.objtype = None
-                domethods = [mthdname.partition('_')[2] for mthdname, _
-                             in inspect.getmembers(
-                                 self, predicate=inspect.ismethod)
-                             if mthdname.startswith('do_')]
+        @printexceptions
+        def do_add(self, args):
+            ld.ldap_add(self.objtype, args)
 
-                for mthd in domethods:
-                    getattr(self, 'do_' + mthd).__func__.completions = [
-                        getattr(self, 'complete_' + mthd, self.complete_default)]
+        def complete_add(self, token=""):
+            return shellac.complete_list(
+                objconf[self.objtype]['must'] + objconf[self.objtype]['may'], token)
 
-            def complete_default(self, token=""):
-                return ld.ldap_search(self.objtype, token)
-
-            @printexceptions
-            def do_add(self, args):
-                ld.ldap_add(self.objtype, args)
-
-            def complete_add(self, token=""):
-                return shellac.complete_list(
-                    objconf[self.objtype]['must'] + objconf[self.objtype]['may'], token)
-
-            def help_add(self, args):
-                conf = objconf[self.objtype]
-                return """\
+        def help_add(self, args):
+            conf = objconf[self.objtype]
+            return """\
 Add a new entry.
 
 Attributes for this entry:
@@ -325,120 +316,120 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
                                        ','.join(conf['may']),
                                        self.objtype)
 
-            @printexceptions
-            def do_delete(self, args):
-                # prompt for confirmation
-                if options.force or raw_input(
-                        "Are you sure? (y/n):").lower().startswith('y'):
-                    ld.ldap_delete(self.objtype, args)
+        @printexceptions
+        def do_delete(self, args):
+            # prompt for confirmation
+            if options.force or raw_input(
+                    "Are you sure? (y/n):").lower().startswith('y'):
+                ld.ldap_delete(self.objtype, args)
 
-            def help_delete(self, args):
-                return """\
+        def help_delete(self, args):
+            return """\
 Delete an entry.
 
 Usage: %s delete entry""" % (self.objtype)
 
-            @printexceptions
-            def do_rename(self, args):
-                ld.ldap_rename(self.objtype, args)
+        @printexceptions
+        def do_rename(self, args):
+            ld.ldap_rename(self.objtype, args)
 
-            def help_rename(self, args):
-                return """\
+        def help_rename(self, args):
+            return """\
 Rename an entry.
 
 Usage: %s rename entry newname""" % (self.objtype)
 
-            @printexceptions
-            def do_edit(self, args):
-                ld.ldap_replace_attr(self.objtype, args)
+        @printexceptions
+        def do_edit(self, args):
+            ld.ldap_replace_attr(self.objtype, args)
 
-            def help_edit(self, args):
-                return """\
+        def help_edit(self, args):
+            return """\
 Change the value of an attribute of an entry.
 
 Usage: %s edit entry attr val""" % (self.objtype)
 
-            def do_search(self, args):
-                try:
-                    print(ld.ldap_search(self.objtype, args))
-                except shellac.CompletionError:
-                    print("Search timed out.")
+        def do_search(self, args):
+            try:
+                print(ld.ldap_search(self.objtype, args))
+            except shellac.CompletionError:
+                print("Search timed out.")
 
-            def help_search(self, args):
-                return """\
+        def help_search(self, args):
+            return """\
 Search for entries which start with a pattern.
 
 Usage: %s search pattern""" % (self.objtype)
 
-            def do_show(self, args):
-                pprint.pprint(self.show(args))
+        def do_show(self, args):
+            pprint.pprint(self.show(args))
 
-            def show(self, args):
-                try:
-                    return ld.ldap_attrs(self.objtype, args)
-                except shellac.CompletionError:
-                    return "Search timed out."
+        def show(self, args):
+            try:
+                return ld.ldap_attrs(self.objtype, args)
+            except shellac.CompletionError:
+                return "Search timed out."
 
-            def help_show(self, args):
-                return """\
+        def help_show(self, args):
+            return """\
 Show the attributes of an entry.
 
 Usage: %s show entry""" % (self.objtype)
 
-            @printexceptions
-            def do_editor(self, args):
-                oldentries = dict(self.show(args or '*'))
-                # Parse entries into ldif into a tempfile
-                with tempfile.TemporaryFile() as tmpf:
-                    ldw = ldif.LDIFWriter(tmpf, cols=99999)
-                    for entry in oldentries.items():
-                        ldw.unparse(*entry)
+        @printexceptions
+        def do_editor(self, args):
+            oldentries = dict(self.show(args or '*'))
+            # Parse entries into ldif into a tempfile
+            with tempfile.TemporaryFile() as tmpf:
+                ldw = ldif.LDIFWriter(tmpf, cols=99999)
+                for entry in oldentries.items():
+                    ldw.unparse(*entry)
 
-                    tmpf.seek(0, 0)
-                    fcntl.fcntl(tmpf.fileno(), fcntl.F_SETFD, 0)  # clear FD_CLOEXEC
-                    # Open the tempfile in an editor
-                    if subprocess.call([os.getenv('EDITOR', "/usr/bin/vi"),
-                                        '/dev/fd/%d' % tmpf.fileno()]) != 0:
-                        print("Editor exited non-zero, aborting.")
-                        return
+                tmpf.seek(0, 0)
+                fcntl.fcntl(tmpf.fileno(), fcntl.F_SETFD, 0)  # clear FD_CLOEXEC
+                # Open the tempfile in an editor
+                if subprocess.call([os.getenv('EDITOR', "/usr/bin/vi"),
+                                    '/dev/fd/%d' % tmpf.fileno()]) != 0:
+                    print("Editor exited non-zero, aborting.")
+                    return
 
-                    # Parse the ldif from tempfile back to (dn, entry), then close it
-                    tmpf.seek(0, 0)
-                    ldr = ldif.LDIFRecordList(tmpf)
-                    ldr.parse()
-                newentries = dict(ldr.all_records)
+                # Parse the ldif from tempfile back to (dn, entry), then close it
+                tmpf.seek(0, 0)
+                ldr = ldif.LDIFRecordList(tmpf)
+                ldr.parse()
+            newentries = dict(ldr.all_records)
 
-                for dn, val in newentries.items():
-                    if dn not in oldentries:
-                        ld.conn.add_s(dn,
-                                      ldap.modlist.addModlist(val))
-                    elif oldentries[dn] != newentries[dn]:
-                        ld.conn.modify_s(dn,
-                                         ldap.modlist.modifyModlist(oldentries[dn], val))
-                for dn in oldentries:
-                    if dn not in newentries:
-                        ld.conn.delete_s(dn)
+            for dn, val in newentries.items():
+                if dn not in oldentries:
+                    ld.conn.add_s(dn,
+                                  ldap.modlist.addModlist(val))
+                elif oldentries[dn] != newentries[dn]:
+                    ld.conn.modify_s(dn,
+                                     ldap.modlist.modifyModlist(oldentries[dn], val))
+            for dn in oldentries:
+                if dn not in newentries:
+                    ld.conn.delete_s(dn)
 
-        class LDAPShell(shellac.Shellac, object):
+    class LDAPShell(shellac.Shellac, object):
 
-            @objtype("user")
-            class do_user(LDAPListCommands):
-                pass
+        @objtype("user")
+        class do_user(LDAPListCommands):
+            pass
 
-            @objtype("group")
-            class do_group(LDAPListCommands):
+        @objtype("group")
+        class do_group(LDAPListCommands):
 
-                class do_member():
+            class do_member(object):
 
-                    @shellac.completer(partial(ld.ldap_search, "group"))
-                    @printexceptions
-                    @staticmethod
-                    def do_add(args):
-                        ld.ldap_mod_attr("group", "add", "member", args)
+                @staticmethod
+                @shellac.completer(partial(ld.ldap_search, "group"))
+                @printexceptions
+                def do_add(args):
+                    ld.ldap_mod_attr("group", "add", "member", args)
 
-                    @staticmethod
-                    def help_add(args):
-                        return """\
+                @staticmethod
+                def help_add(args):
+                    return """\
 Add an entry to the member attribute for a group.
 
 'type' can be any of the entry types for which a base DN is specified in the configuration.
@@ -446,15 +437,15 @@ Add an entry to the member attribute for a group.
 Usage: group member add type entry
 Example: group member add user josoap"""
 
-                    @shellac.completer(partial(ld.ldap_search, "group"))
-                    @printexceptions
-                    @staticmethod
-                    def do_delete(args):
-                        ld.ldap_mod_attr("group", "delete", "member", args)
+                @staticmethod
+                @shellac.completer(partial(ld.ldap_search, "group"))
+                @printexceptions
+                def do_delete(args):
+                    ld.ldap_mod_attr("group", "delete", "member", args)
 
-                    @staticmethod
-                    def help_delete(args):
-                        return """\
+                @staticmethod
+                def help_delete(args):
+                    return """\
 Delete an entry from the member attribute for a group.
 
 'type' can be any of the entry types for which a base DN is specified in the configuration.
@@ -462,27 +453,41 @@ Delete an entry from the member attribute for a group.
 Usage: group member delete type entry
 Example: group member delete user josoap"""
 
-            @objtype("automount")
-            class do_automount(LDAPListCommands):
+        @objtype("automount")
+        class do_automount(LDAPListCommands):
 
-                @objtype("automap")
-                class do_map(LDAPListCommands):
-                    pass
-
-                @shellac.completer(partial(ld.ldap_search, "automount"))
-                @printexceptions
-                def do_add(self, args):
-                    rdn = [x for x in args.split() if x.startswith('nisMapName')][0]
-                    ld.ldap_add(self.objtype, args, rdn=rdn)
-
-            @objtype("dyngroup")
-            class do_dyngroup(LDAPListCommands):
+            @objtype("automap")
+            class do_map(LDAPListCommands):
                 pass
 
+            @shellac.completer(partial(ld.ldap_search, "automount"))
+            @printexceptions
+            def do_add(self, args):
+                rdn = [x for x in args.split() if x.startswith('nisMapName')][0]
+                ld.ldap_add(self.objtype, args, rdn=rdn)
+
+        @objtype("dyngroup")
+        class do_dyngroup(LDAPListCommands):
+            pass
+
+    return LDAPShell()
+
+
+def main():
+    options, args = parse_opts()
+    config = parse_config(options)
+
+    # Create the objconf dict
+    objconf = LDAPConfig(config)
+
+    # Bind the LDAP, so that our shell objects can access it
+    with LDAPSession(objconf) as ld:
+
+        shell = shell_factory(ld, config, options, objconf)
         if len(args) != 0:
-            LDAPShell().onecmd(' '.join(args))
+            shell.onecmd(' '.join(args))
         else:
-            LDAPShell().cmdloop()
+            shell.cmdloop()
 
 
 if __name__ == "__main__":
