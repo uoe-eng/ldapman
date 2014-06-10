@@ -119,8 +119,13 @@ class LDAPSession(object):
 
         timeout = float(self.conf.globalconf.get('global', 'timeout', vars={'timeout': '-1'}))
         try:
+            scope = getattr(ldap, self.conf[objtype]['scope'])
+        except KeyError:
+            scope = ldap.SCOPE_ONELEVEL
+
+        try:
             return self.conn.search_st(self.conf[objtype]['base'],
-                                       ldap.SCOPE_ONELEVEL,
+                                       scope,
                                        filterstr=self.conf[objtype]['filter'] % (token),
                                        timeout=timeout)
         except ldap.TIMEOUT:
