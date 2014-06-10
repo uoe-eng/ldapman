@@ -84,9 +84,12 @@ class LDAPSession(object):
         must = []
         may = []
         for entry in self.conf[objtype]['objectclass']:
-            attrs = self.schema.get_obj(ldap.schema.ObjectClass, entry)
-            must.extend(attrs.must)
-            may.extend(attrs.may)
+            # attribute_types returns 2 tuples of all must and may attrs,
+            # including recursion into inherited attributes
+            # This always includes 'objectClass' so discard this
+            attrs = self.schema.attribute_types([entry])
+            must.extend([item.names[0] for item in attrs[0].values() if not item.names[0] == "objectClass"])
+            may.extend([item.names[0] for item in attrs[1].values() if not item.names[0] == "objectClass"])
         return must, may
 
     def ldap_search(self, objtype, token):
