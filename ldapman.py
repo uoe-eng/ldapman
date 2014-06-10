@@ -6,7 +6,6 @@ import ldap.sasl
 import ldap.schema
 import ldap.modlist
 import sys
-import pprint
 import ConfigParser
 from optparse import OptionParser
 from functools import partial, wraps
@@ -18,6 +17,7 @@ import tempfile
 import subprocess
 import fcntl
 import ldif
+from StringIO import StringIO
 
 
 def printexceptions(func):
@@ -69,6 +69,25 @@ class LDAPSession(object):
     def __enter__(self):
         self.open()
         return self
+
+    def ldap_to_ldif(self, pyld):
+        """Convert python-ldap list of tuples into ldif string"""
+
+        tmpf = StringIO()
+        ldw = ldif.LDIFWriter(tmpf, cols=99999)
+        [ldw.unparse(*item) for item in pyld]
+
+        return tmpf.getvalue()
+
+    def ldif_to_ldap(self, ldiff):
+        """Convert ldif string into python-ldap list of tuples"""
+
+        tmpf = StringIO()
+        tmpf.write(ldiff)
+        tmpf.seek(0)
+        ldr = ldif.LDIFRecordList(tmpf)
+        ldr.parse()
+        return ldr.all_records
 
     def ldap_check_schema(self, objtype):
         """Retrieve the schema from the server, returning (must, may) lists
@@ -370,7 +389,7 @@ Search for entries which start with a pattern.
 Usage: %s search pattern""" % (self.objtype)
 
         def do_show(self, args):
-            pprint.pprint(self.show(args))
+            print(ld.ldap_to_ldif(self.show(args)))
 
         def show(self, args):
             try:
@@ -386,13 +405,11 @@ Usage: %s show entry""" % (self.objtype)
 
         @printexceptions
         def do_editor(self, args):
-            oldentries = dict(self.show(args or '*'))
-            # Parse entries into ldif into a tempfile
+            result = self.show(args or '*')
+            oldentries = dict(result)
+            # Parse python-ldap dict into ldif, write into a tempfile
             with tempfile.TemporaryFile() as tmpf:
-                ldw = ldif.LDIFWriter(tmpf, cols=99999)
-                for entry in oldentries.items():
-                    ldw.unparse(*entry)
-
+                tmpf.write(ld.ldap_to_ldif(result))
                 tmpf.seek(0, 0)
                 fcntl.fcntl(tmpf.fileno(), fcntl.F_SETFD, 0)  # clear FD_CLOEXEC
                 # Open the tempfile in an editor
@@ -401,11 +418,9 @@ Usage: %s show entry""" % (self.objtype)
                     print("Editor exited non-zero, aborting.")
                     return
 
-                # Parse the ldif from tempfile back to (dn, entry), then close it
+                # Parse the tempfile ldif back to a dict, then close tempfile
                 tmpf.seek(0, 0)
-                ldr = ldif.LDIFRecordList(tmpf)
-                ldr.parse()
-            newentries = dict(ldr.all_records)
+                newentries = dict(ld.ldif_to_ldap(tmpf.read()))
 
             for dn, val in newentries.items():
                 if dn not in oldentries:
