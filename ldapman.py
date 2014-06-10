@@ -399,6 +399,7 @@ Usage: %s show entry""" % (self.objtype)
                     # Open the tempfile in an editor
                     if subprocess.call([os.getenv('EDITOR', "/usr/bin/vi"),
                                         '/dev/fd/%d' % tmpf.fileno()]) != 0:
+                        print("Editor exited non-zero, aborting.")
                         return
 
                     # Parse the ldif from tempfile back to (dn, entry), then close it
