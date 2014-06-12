@@ -20,6 +20,13 @@ import ldif
 from StringIO import StringIO
 
 
+class BuildDNError(Exception):
+    """Errors when constructing a DN in BuildDN method."""
+
+    def __init__(self, args="Error building a DN from supplied arguments."):
+        Exception.__init__(self, args)
+
+
 def printexceptions(func):
     """Decorate the given function so that in debugging mode all unhandled
     tracebacks are printed and re-raised.
@@ -30,6 +37,13 @@ def printexceptions(func):
     def new_func(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        # Certain errors should be reported, but not raised
+        # This gives an error message, but remains in the shell
+        # FIXME (mrichar1): is 'e' always a clear enough message?
+        # - should ConfigParser have it's own error reporting?
+        # - other errors need special handling? e.g ValueError from member add
+        except (ldap.LDAPError, ConfigParser.ParsingError) as e:
+            print(e)
         except Exception:
             print(sys.exc_info()[0])
             raise
