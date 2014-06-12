@@ -39,13 +39,12 @@ def printexceptions(func):
             return func(*args, **kwargs)
         # Certain errors should be reported, but not raised
         # This gives an error message, but remains in the shell
-        # FIXME (mrichar1): is 'e' always a clear enough message?
-        # - should ConfigParser have it's own error reporting?
-        # - other errors need special handling? e.g ValueError from member add
-        except (ldap.LDAPError, ConfigParser.ParsingError) as e:
+        except (ldap.LDAPError, ConfigParser.ParsingError, BuildDNError) as e:
             print(e)
-        except Exception:
-            print(sys.exc_info()[0])
+        # Otherwise, print and raise exceptions if debug is enabled
+        except Exception as e:
+            # FIXME: test for debug flag
+            print(e)
             raise
     return new_func
 
@@ -291,7 +290,12 @@ class LDAPConfig(dict):
     def buildDN(self, obj, child=None, rdn=""):
         if len(rdn) != 0:
             rdn += ','
-        conf = self[child] if child is not None else self
+        try:
+            conf = self[child] if child is not None else self
+        except KeyError:
+            # Raise as BuildDNError to allow better handling
+            raise BuildDNError
+
         return "%s,%s%s" % (conf['filter'] % (obj),
                             rdn,
                             conf['base'])
@@ -462,7 +466,10 @@ Usage: %s show entry""" % (self.objtype)
                 @shellac.completer(partial(ld.ldap_search, "group"))
                 @printexceptions
                 def do_add(args):
-                    ld.ldap_mod_attr("group", "add", "member", args)
+                    try:
+                        ld.ldap_mod_attr("group", "add", "member", args)
+                    except ValueError:
+                        print("Wrong number of arguments supplied. See help for more information.")
 
                 @staticmethod
                 def help_add(args):
