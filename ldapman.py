@@ -39,7 +39,14 @@ def printexceptions(func):
             return func(*args, **kwargs)
         # Certain errors should be reported, but not raised
         # This gives an error message, but remains in the shell
-        except (ldap.LDAPError, ConfigParser.ParsingError, BuildDNError) as e:
+        except ldap.LDAPError as e:
+            # LDAPError may contain a dict with desc and (optional) info fields
+            if isinstance(e.args[0], dict):
+                print e.args[0]['desc'], e.args[0].get('info', '')
+            else:
+                # Otherwise, treat as a simple string
+                print(e)
+        except (ConfigParser.ParsingError, BuildDNError) as e:
             print(e)
         # Otherwise, print and raise exceptions if debug is enabled
         except Exception as e:
