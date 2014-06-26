@@ -27,10 +27,10 @@ class BuildDNError(Exception):
 
 
 def compare_dicts(olddict, newdict):
-    """Compare two dictionaries - return 3 dictionaries with changes:
-        - 'adds' contains k:v
-        - 'mods' contains k:(oldv,newv)
-        - 'dels' contains k:None
+    """Compare two dictionaries - return a tuple of 3 dictionaries
+        - [0] contains 'adds' as k:v
+        - [1] contains 'modifies' as k:(oldv,newv)
+        - [2] contains 'deletes' as k:None
 
     """
 
@@ -354,11 +354,15 @@ def shell_factory(ld, config, options, objconf):
             return cls
         return annotateObjType
 
+    def safe_to_continue():
+        if options.force or (options.interactive and raw_input(
+                "Are you sure? (y/n):").lower().startswith('y')):
+            return True
+
     # A decorator to abort "unsafe" operations without explicit permission.
     def safety_check(func):
         def new_func(*args, **kwargs):
-            if options.force or (options.interactive and raw_input(
-                    "Are you sure? (y/n):").lower().startswith('y')):
+            if safe_to_continue():
                 return func(*args, **kwargs)
         return new_func
 
@@ -479,23 +483,19 @@ Usage: %s show entry""" % (self.objtype)
 
             adds, mods, dels = compare_dicts(oldentries, newentries)
 
-            print("Changes: %d Added, %d Modified, %d Deleted" %
+            print("Changes: %d Addition(s), %d Modification(s), %d Deletion(s)." %
                   (len(adds.keys()), len(mods.keys()), len(dels.keys())))
 
-            self.editor_actions(adds, mods, dels)
-
-        @staticmethod
-        @printexceptions
-        @safety_check
-        def editor_actions(adds, mods, dels):
-
-            for dn, val in adds.items():
-                ld.conn.add_s(dn, ldap.modlist.addModlist(val))
-            for dn, (oldval, newval) in mods.items():
-                ld.conn.modify_s(dn,
-                                 ldap.modlist.modifyModlist(oldval, newval))
-            for dn in dels.keys():
-                ld.conn.delete_s(dn)
+            if safe_to_continue():
+                for dn, val in adds.items():
+                    ld.conn.add_s(dn, ldap.modlist.addModlist(val))
+                for dn, (oldval, newval) in mods.items():
+                    ld.conn.modify_s(dn,
+                                     ldap.modlist.modifyModlist(oldval, newval))
+                for dn in dels.keys():
+                    ld.conn.delete_s(dn)
+            else:
+                print("No changes made.")
 
     class LDAPShell(shellac.Shellac, object):
 
