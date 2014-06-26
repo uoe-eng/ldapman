@@ -5,7 +5,6 @@ import ldap
 import ldap.sasl
 import ldap.schema
 import ldap.modlist
-import sys
 import ConfigParser
 from optparse import OptionParser
 from functools import partial, wraps
@@ -90,7 +89,8 @@ class LDAPSession(object):
         self.open()
         return self
 
-    def ldap_to_ldif(self, pyld):
+    @staticmethod
+    def ldap_to_ldif(pyld):
         """Convert python-ldap list of tuples into ldif string"""
 
         tmpf = StringIO()
@@ -99,7 +99,8 @@ class LDAPSession(object):
 
         return tmpf.getvalue()
 
-    def ldif_to_ldap(self, ldiff):
+    @staticmethod
+    def ldif_to_ldap(ldiff):
         """Convert ldif string into python-ldap list of tuples"""
 
         tmpf = StringIO()
