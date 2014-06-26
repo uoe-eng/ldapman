@@ -417,7 +417,10 @@ Usage: %s delete entry""" % (self.objtype)
 
         @printexceptions
         def do_rename(self, args):
-            ld.ldap_rename(self.objtype, args)
+            try:
+                ld.ldap_rename(self.objtype, args)
+            except ValueError:
+                print("Wrong number of arguments supplied. See help for more information.")
 
         def help_rename(self, args):
             return """\
@@ -427,7 +430,10 @@ Usage: %s rename entry newname""" % (self.objtype)
 
         @printexceptions
         def do_edit(self, args):
-            ld.ldap_replace_attr(self.objtype, args)
+            try:
+                ld.ldap_replace_attr(self.objtype, args)
+            except ValueError:
+                print("Wrong number of arguments supplied. See help for more information.")
 
         def help_edit(self, args):
             return """\
