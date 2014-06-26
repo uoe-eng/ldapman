@@ -26,6 +26,29 @@ class BuildDNError(Exception):
         Exception.__init__(self, args)
 
 
+def compare_dicts(olddict, newdict):
+    """Compare two dictionaries - return 3 dictionaries with changes:
+        - 'adds' contains k:v
+        - 'mods' contains k:(oldv,newv)
+        - 'dels' contains k:None
+
+    """
+
+    adds = {}
+    mods = {}
+    dels = {}
+    for key, val in newdict.items():
+        if key not in olddict:
+            adds[key] = val
+        elif olddict[key] != newdict[key]:
+            mods[key] = (olddict[key], val)
+    for key in olddict:
+        if key not in newdict:
+            dels[key] = None
+
+    return adds, mods, dels
+
+
 def printexceptions(func):
     """Decorate the given function so that in debugging mode all unhandled
     tracebacks are printed and re-raised.
@@ -454,16 +477,25 @@ Usage: %s show entry""" % (self.objtype)
                 tmpf.seek(0, 0)
                 newentries = dict(ld.ldif_to_ldap(tmpf.read()))
 
-            for dn, val in newentries.items():
-                if dn not in oldentries:
-                    ld.conn.add_s(dn,
-                                  ldap.modlist.addModlist(val))
-                elif oldentries[dn] != newentries[dn]:
-                    ld.conn.modify_s(dn,
-                                     ldap.modlist.modifyModlist(oldentries[dn], val))
-            for dn in oldentries:
-                if dn not in newentries:
-                    ld.conn.delete_s(dn)
+            adds, mods, dels = compare_dicts(oldentries, newentries)
+
+            print("Changes: %d Added, %d Modified, %d Deleted" %
+                  (len(adds.keys()), len(mods.keys()), len(dels.keys())))
+
+            self.editor_actions(adds, mods, dels)
+
+        @staticmethod
+        @printexceptions
+        @safety_check
+        def editor_actions(adds, mods, dels):
+
+            for dn, val in adds.items():
+                ld.conn.add_s(dn, ldap.modlist.addModlist(val))
+            for dn, (oldval, newval) in mods.items():
+                ld.conn.modify_s(dn,
+                                 ldap.modlist.modifyModlist(oldval, newval))
+            for dn in dels.keys():
+                ld.conn.delete_s(dn)
 
     class LDAPShell(shellac.Shellac, object):
 
