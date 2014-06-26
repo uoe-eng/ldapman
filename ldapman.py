@@ -330,6 +330,14 @@ def shell_factory(ld, config, options, objconf):
             return cls
         return annotateObjType
 
+    # A decorator to abort "unsafe" operations without explicit permission.
+    def safety_check(func):
+        def new_func(*args, **kwargs):
+            if options.force or (options.interactive and raw_input(
+                    "Are you sure? (y/n):").lower().startswith('y')):
+                return func(*args, **kwargs)
+        return new_func
+
     class LDAPListCommands(object):
         """Abstract class for LDAP entries with a "list" interface."""
 
@@ -369,11 +377,9 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
                                        self.objtype)
 
         @printexceptions
+        @safety_check
         def do_delete(self, args):
-            # prompt for confirmation
-            if options.force or raw_input(
-                    "Are you sure? (y/n):").lower().startswith('y'):
-                ld.ldap_delete(self.objtype, args)
+            ld.ldap_delete(self.objtype, args)
 
         def help_delete(self, args):
             return """\
@@ -528,6 +534,8 @@ def main():
     options, args = parse_opts()
     config = parse_config(options)
 
+    options.interactive = len(args) == 0
+
     # Create the objconf dict
     objconf = LDAPConfig(config)
 
@@ -535,10 +543,10 @@ def main():
     with LDAPSession(objconf) as ld:
 
         shell = shell_factory(ld, config, options, objconf)
-        if len(args) != 0:
-            shell.onecmd(' '.join(args))
-        else:
+        if options.interactive:
             shell.cmdloop()
+        else:
+            shell.onecmd(' '.join(args))
 
 
 if __name__ == "__main__":
