@@ -548,8 +548,95 @@ Delete an entry from the member attribute for a group.
 
 'type' can be any of the entry types for which a base DN is specified in the configuration.
 
-Usage: group member delete type entry
-Example: group member delete user josoap"""
+Usage: group member delete <group> <member>
+Example: group member delete staff josoap"""
+
+        @objtype("netgroup")
+        class do_netgroup(LDAPListCommands):
+
+            class do_member(object):
+
+                @staticmethod
+                @shellac.completer(partial(ld.ldap_search, "netgroup"))
+                @printexceptions
+                def do_add(args):
+                    try:
+                        netgroup, members = args.split(None, 2)
+                        ld.ldap_mod_attr("netgroup", "add",
+                                         "memberNisNetgroup", netgroup,
+                                         members.split())
+                    except ValueError:
+                        print("Wrong number of arguments supplied. See help for more information.")
+
+                @staticmethod
+                def help_add(args):
+                    return """\
+Add a new netgroup member for a netgroup.
+
+Usage: netgroup member add <group> <member>
+Example: netgroup member add students year1"""
+
+                @staticmethod
+                @shellac.completer(partial(ld.ldap_search, "netgroup"))
+                @printexceptions
+                def do_delete(args):
+                    try:
+                        netgroup, members = args.split(None, 2)
+                        ld.ldap_mod_attr("netgroup", "delete",
+                                         "memberNisNetgroup", netgroup,
+                                         members.split())
+                    except ValueError:
+                        print ("Wrong number of arguments supplied. See help for more information.")
+
+                @staticmethod
+                def help_delete(args):
+                    return """\
+Delete a netgroup member attribute for a netgroup.
+
+Usage: netgroup member delete <group> <member>
+Example: netgroup member delete students year1"""
+
+            class do_triple(object):
+
+                @staticmethod
+                @shellac.completer(partial(ld.ldap_search, "netgroup"))
+                @printexceptions
+                def do_add(args):
+                    try:
+                        netgroup, triples = args.split(None, 2)
+                        ld.ldap_mod_attr("netgroup", "add",
+                                         "nisNetgroupTriple", netgroup,
+                                         triples.split())
+                    except ValueError:
+                        print("Wrong number of arguments supplied. See help for more information.")
+
+                @staticmethod
+                def help_add(args):
+                    return """\
+Add a new netgroup triple to a netgroup.
+
+Usage: netgroup triple add <groupname> <triple>
+Example: netgroup triple add staff (,josoap,)"""
+
+                @staticmethod
+                @shellac.completer(partial(ld.ldap_search, "netgroup"))
+                @printexceptions
+                def do_delete(args):
+                    try:
+                        netgroup, triples = args.split(None, 2)
+                        ld.ldap_mod_attr("netgroup", "delete",
+                                         "nisNetgroupTriple", netgroup,
+                                         triples.split())
+                    except ValueError:
+                        print("Wrong number of arguments supplied. See help for more information.")
+
+                @staticmethod
+                def help_delete(args):
+                    return """\
+Delete a netgroup triple from a netgroup.
+
+Usage: netgroup triple delete <groupname> <triple>
+Example: netgroup member delete ng1 (,josoap,)"""
 
         @objtype("automount")
         class do_automount(LDAPListCommands):
