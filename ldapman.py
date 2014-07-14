@@ -239,29 +239,21 @@ class LDAPSession(object):
         self.conn.rename_s(self.conf.buildDN(name, objtype),
                            self.conf[objtype]['filter'] % (newname))
 
-    def ldap_mod_attr(self, objtype, modmethod, attr, args):
-        """Modify an attribute. args must be of the form
+    def ldap_mod_attr(self, objtype, modmethod, attr, obj, items):
+        """Modify an attribute.
 
-        'object itemtype item1 item2...'
-
-        """
-
-        obj, itemtype, items = args.split(None, 2)
+        objtype refers to a config section (for DN root).
+        modmethod can be add or delete.
+        attr is the name of the attribute(s) to be modified.
+        obj is the object whose attribute we're modifying.
+        items is a list of values to create/set attributes to."""
 
         self.conn.modify_s(self.conf.buildDN(obj, child=objtype),
                            [(getattr(ldap, "MOD_" + modmethod.upper()),
-                             attr,
-                             self.conf.buildDN(item, child=itemtype))
-                               for item in items.split()])
+                             attr, item) for item in items])
 
-    def ldap_replace_attr(self, objtype, args):
-        """Replace an object. args must be
-
-        'object attr replacementvalue'
-
-        """
-
-        obj, attr, value = args.split()
+    def ldap_replace_attr(self, objtype, obj, attr, value):
+        """Replace the value of an object attribute."""
 
         self.conn.modify_s(self.conf.buildDN(obj, child=objtype),
                            [(ldap.MOD_REPLACE, attr, value)])
@@ -431,7 +423,8 @@ Usage: %s rename entry newname""" % (self.objtype)
         @printexceptions
         def do_edit(self, args):
             try:
-                ld.ldap_replace_attr(self.objtype, args)
+                obj, attr, value = args.split()
+                ld.ldap_replace_attr(self.objtype, obj, attr, value)
             except ValueError:
                 print("Wrong number of arguments supplied. See help for more information.")
 
@@ -519,7 +512,10 @@ Usage: %s show entry""" % (self.objtype)
                 @printexceptions
                 def do_add(args):
                     try:
-                        ld.ldap_mod_attr("group", "add", "member", args)
+                        group, members = args.split(None, 2)
+
+                        ld.ldap_mod_attr("group", "add", "member", group,
+                                         [objconf.buildDN(member, child="user") for member in members.split()])
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 
@@ -530,14 +526,20 @@ Add an entry to the member attribute for a group.
 
 'type' can be any of the entry types for which a base DN is specified in the configuration.
 
-Usage: group member add type entry
-Example: group member add user josoap"""
+Usage: group member add <group> <member>
+Example: group member add staff josoap"""
 
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "group"))
                 @printexceptions
                 def do_delete(args):
-                    ld.ldap_mod_attr("group", "delete", "member", args)
+                    try:
+                        group, members = args.split(None, 2)
+
+                        ld.ldap_mod_attr("group", "delete", "member", group,
+                                         [objconf.buildDN(member, child="user") for member in members.split()])
+                    except ValueError:
+                        print("Wrong number of arguments supplied. See help for more information.")
 
                 @staticmethod
                 def help_delete(args):
