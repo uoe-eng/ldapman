@@ -18,6 +18,7 @@ import subprocess
 import fcntl
 import ldif
 from StringIO import StringIO
+import atexit
 
 
 class BuildDNError(Exception):
@@ -686,6 +687,14 @@ def main():
     config = parse_config(options)
 
     options.interactive = len(args) == 0
+
+    # Try to read the ldapman history file
+    hist_file = os.environ['HOME'] + '/.ldapman_history'
+    try:
+        shellac.readline.read_history_file(hist_file)
+        atexit.register(shellac.readline.write_history_file, hist_file)
+    except (KeyError, IOError):
+        pass
 
     # Create the objconf dict
     objconf = LDAPConfig(config)
