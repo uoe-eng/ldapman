@@ -176,8 +176,7 @@ class LDAPSession(object):
         # Result is a list of tuples, first item of which is DN
         # Strip off the base, then parition on = and keep value
         # Could alternatively split on = and keep first value?
-        return [x[0].replace(
-            ',' + self.conf[objtype]['base'], '').partition('=')[2] for x in result]
+        return [x[0][x[0].index('=')+1:x[0].index(',')] for x in result]
 
     def ldap_attrs(self, objtype, token):
         """Get the attributes of an object."""
