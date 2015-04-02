@@ -525,8 +525,9 @@ Press TAB to see possible completions.
                     self.do_add.completions = [self.complete_add]
 
                 def complete_add(self, token=""):
+                    endidx = shellac.readline.get_endidx()
                     buf = shellac.readline.get_line_buffer()
-                    if len(buf.split(' ', -1)) >= 5:
+                    if len(buf[:endidx].split(' ', -1)) >= 5:
                         return ld.ldap_search("user", token)
                     else:
                         return ld.ldap_search("group", token)
