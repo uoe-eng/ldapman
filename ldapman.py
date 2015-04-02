@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+"""LDAPMan: a command-line shell for managing LDAP objects."""
+
 from __future__ import print_function
 import shellac
 import ldap
@@ -313,6 +315,7 @@ class LDAPConfig(dict):
                         self[section]['defaultattrs'])
 
     def build_dn(self, obj, child=None, rdn=""):
+        """ Return a DN constructed from a filter, rdn, and base DN."""
         if len(rdn) != 0:
             rdn += ','
         try:
@@ -349,12 +352,14 @@ def shell_factory(ld, config, options, objconf):
         return annotate_obj_type
 
     def safe_to_continue():
+        """Returns true if force set, or interactive and 'y' pressed."""
         if options.force or (options.interactive and raw_input(
                 "Are you sure? (y/n):").lower().startswith('y')):
             return True
 
-    # A decorator to abort "unsafe" operations without explicit permission.
     def safety_check(func):
+        """A decorator to abort "unsafe" operations without explicit permission."""
+
         def new_func(*args, **kwargs):
             if safe_to_continue():
                 return func(*args, **kwargs)
@@ -375,17 +380,21 @@ def shell_factory(ld, config, options, objconf):
                     getattr(self, 'complete_' + mthd, self.complete_default)]
 
         def complete_default(self, token=""):
+            """Default completion method if no explicit method set."""
             return ld.ldap_search(self.objtype, token)
 
         @printexceptions
         def do_add(self, args):
+            """Add an LDAP object."""
             ld.ldap_add(self.objtype, args)
 
         def complete_add(self, token=""):
+            """Completion method for do_add."""
             return shellac.complete_list(
                 objconf[self.objtype]['must'] + objconf[self.objtype]['may'], token)
 
         def help_add(self, args):
+            """help method for do_add."""
             conf = objconf[self.objtype]
             return """\
 Add a new entry.
@@ -401,9 +410,11 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
         @printexceptions
         @safety_check
         def do_delete(self, args):
+            """Delete an LDAP object."""
             ld.ldap_delete(self.objtype, args)
 
         def help_delete(self, args):
+            """help method for do_delete."""
             return """\
 Delete an entry.
 
@@ -411,12 +422,14 @@ Usage: %s delete entry""" % (self.objtype)
 
         @printexceptions
         def do_rename(self, args):
+            """Rename an LDAP object."""
             try:
                 ld.ldap_rename(self.objtype, args)
             except ValueError:
                 print("Wrong number of arguments supplied. See help for more information.")
 
         def help_rename(self, args):
+            """help method for do_rename."""
             return """\
 Rename an entry.
 
@@ -424,6 +437,7 @@ Usage: %s rename entry newname""" % (self.objtype)
 
         @printexceptions
         def do_modify(self, args):
+            """Modify the attributes of an LDAP object."""
             try:
                 obj, attr, value = args.split()
                 ld.ldap_replace_attr(self.objtype, obj, attr, value)
@@ -431,33 +445,39 @@ Usage: %s rename entry newname""" % (self.objtype)
                 print("Wrong number of arguments supplied. See help for more information.")
 
         def help_modify(self, args):
+            """help method for do_modify."""
             return """\
 Change the value of an attribute of an entry.
 
 Usage: %s modify entry attr val""" % (self.objtype)
 
         def do_search(self, args):
+            """Search for LDAP objects."""
             try:
                 print(ld.ldap_search(self.objtype, args))
             except shellac.CompletionError:
                 print("Search timed out.")
 
         def help_search(self, args):
+            """help method for do_search."""
             return """\
 Search for entries which start with a pattern.
 
 Usage: %s search pattern""" % (self.objtype)
 
         def do_show(self, args):
+            """Show the attributes of an LDAP object."""
             print(ld.ldap_to_ldif(self.show(args)))
 
         def show(self, args):
+            """Gets an object's attributes for do_show method."""
             try:
                 return ld.ldap_attrs(self.objtype, args)
             except shellac.CompletionError:
                 return "Search timed out."
 
         def help_show(self, args):
+            """help method for do_show."""
             return """\
 Show the attributes of an entry.
 
@@ -465,6 +485,7 @@ Usage: %s show entry""" % (self.objtype)
 
         @printexceptions
         def do_edit(self, args):
+            """Edit the ldif of an LDAP object with $EDITOR."""
             result = self.show(args or '*')
             oldentries = dict(result)
             # Parse python-ldap dict into ldif, write into a tempfile
@@ -499,6 +520,7 @@ Usage: %s show entry""" % (self.objtype)
                 print("No changes made.")
 
         def help_edit(self, args):
+            """help method for do_edit."""
             return """\
 Open the object(s) in a text editor for editing.
 ($EDITOR = %s)
@@ -515,18 +537,23 @@ Press TAB to see possible completions.
 
         @objtype("user")
         class do_user(LDAPListCommands):
+            """Add a placeholder for a user menu item."""
             pass
 
         @objtype("group")
         class do_group(LDAPListCommands):
+            """Add a group menu item."""
 
             class do_member(object):
+                """Add a member menu item."""
 
                 def __init__(self):
                     self.do_add.completions = [self.complete_add]
                     self.do_delete.completions = [self.complete_delete]
 
-                def complete_add(self, token=""):
+                @staticmethod
+                def complete_add(token=""):
+                    """complete method for do_add."""
                     endidx = shellac.readline.get_endidx()
                     buf = shellac.readline.get_line_buffer()
                     if len(buf[:endidx].split(' ', -1)) >= 5:
@@ -537,6 +564,7 @@ Press TAB to see possible completions.
                 @staticmethod
                 @printexceptions
                 def do_add(args):
+                    """add method for group member."""
                     try:
                         group, members = args.split(None, 2)
 
@@ -547,13 +575,16 @@ Press TAB to see possible completions.
 
                 @staticmethod
                 def help_add(args):
+                    """help method for do_add."""
                     return """\
 Add an entry to the member attribute for a group.
 
 Usage: group member add <group> <member>
 Example: group member add staff josoap"""
 
-                def complete_delete(self, token=""):
+                @staticmethod
+                def complete_delete(token=""):
+                    """complete method for do_delete."""
                     endidx = shellac.readline.get_endidx()
                     buf = shellac.readline.get_line_buffer()
                     if len(buf[:endidx].split(' ', -1)) >= 5:
@@ -572,6 +603,7 @@ Example: group member add staff josoap"""
                 @printexceptions
                 @safety_check
                 def do_delete(args):
+                    """delete method for group member."""
                     try:
                         group, members = args.split(None, 2)
 
@@ -582,6 +614,7 @@ Example: group member add staff josoap"""
 
                 @staticmethod
                 def help_delete(args):
+                    """help method for do_delete."""
                     return """\
 Delete an entry from the member attribute for a group.
 
@@ -590,13 +623,16 @@ Example: group member delete staff josoap"""
 
         @objtype("netgroup")
         class do_netgroup(LDAPListCommands):
+            """Add a netgroup menu item."""
 
             class do_member(object):
+                """Add a member menu item."""
 
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "netgroup"))
                 @printexceptions
                 def do_add(args):
+                    """add method for netgroup member."""
                     try:
                         netgroup, members = args.split(None, 2)
                         ld.ldap_mod_attr("netgroup", "add",
@@ -607,6 +643,7 @@ Example: group member delete staff josoap"""
 
                 @staticmethod
                 def help_add(args):
+                    """help method for do_add."""
                     return """\
 Add a new netgroup member for a netgroup.
 
@@ -618,6 +655,7 @@ Example: netgroup member add students year1"""
                 @printexceptions
                 @safety_check
                 def do_delete(args):
+                    """delete method for netgroup member."""
                     try:
                         netgroup, members = args.split(None, 2)
                         ld.ldap_mod_attr("netgroup", "delete",
@@ -628,6 +666,7 @@ Example: netgroup member add students year1"""
 
                 @staticmethod
                 def help_delete(args):
+                    """help method for do_delete."""
                     return """\
 Delete a netgroup member attribute for a netgroup.
 
@@ -635,11 +674,13 @@ Usage: netgroup member delete <group> <member>
 Example: netgroup member delete students year1"""
 
             class do_triple(object):
+                """Add a triple menu item."""
 
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "netgroup"))
                 @printexceptions
                 def do_add(args):
+                    """add method for netgroup triple."""
                     try:
                         netgroup, triples = args.split(None, 2)
                         ld.ldap_mod_attr("netgroup", "add",
@@ -650,6 +691,7 @@ Example: netgroup member delete students year1"""
 
                 @staticmethod
                 def help_add(args):
+                    """help method for do_add."""
                     return """\
 Add a new netgroup triple to a netgroup.
 
@@ -661,6 +703,7 @@ Example: netgroup triple add staff (,josoap,)"""
                 @printexceptions
                 @safety_check
                 def do_delete(args):
+                    """delete method for netgroup member."""
                     try:
                         netgroup, triples = args.split(None, 2)
                         ld.ldap_mod_attr("netgroup", "delete",
@@ -671,6 +714,7 @@ Example: netgroup triple add staff (,josoap,)"""
 
                 @staticmethod
                 def help_delete(args):
+                    """help method for do_delete."""
                     return """\
 Delete a netgroup triple from a netgroup.
 
@@ -679,25 +723,30 @@ Example: netgroup member delete ng1 (,josoap,)"""
 
         @objtype("automount")
         class do_automount(LDAPListCommands):
+            """Add automount menu item."""
 
             @objtype("automap")
             class do_map(LDAPListCommands):
+                """Placeholder for automount maps menu."""
                 pass
 
             @shellac.completer(partial(ld.ldap_search, "automount"))
             @printexceptions
             def do_add(self, args):
+                """add method for automount."""
                 rdn = [x for x in args.split() if x.startswith('nisMapName')][0]
                 ld.ldap_add(self.objtype, args, rdn=rdn)
 
         @objtype("dyngroup")
         class do_dyngroup(LDAPListCommands):
+            """Placeholder for dynamic groups menu."""
             pass
 
     return LDAPMan()
 
 
 def main():
+    """Start here."""
     options, args = parse_opts()
     config = parse_config(options)
 
