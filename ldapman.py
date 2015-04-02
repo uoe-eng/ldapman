@@ -548,8 +548,6 @@ Press TAB to see possible completions.
                     return """\
 Add an entry to the member attribute for a group.
 
-'type' can be any of the entry types for which a base DN is specified in the configuration.
-
 Usage: group member add <group> <member>
 Example: group member add staff josoap"""
 
@@ -570,8 +568,6 @@ Example: group member add staff josoap"""
                 def help_delete(args):
                     return """\
 Delete an entry from the member attribute for a group.
-
-'type' can be any of the entry types for which a base DN is specified in the configuration.
 
 Usage: group member delete <group> <member>
 Example: group member delete staff josoap"""
