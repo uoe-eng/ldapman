@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from __future__ import print_function
 import shellac
 import ldap
 import ldap.sasl
@@ -64,7 +65,7 @@ def printexceptions(func):
         except ldap.LDAPError as e:
             # LDAPError may contain a dict with desc and (optional) info fields
             if isinstance(e.args[0], dict):
-                print e.args[0]['desc'], e.args[0].get('info', '')
+                print(e.args[0]['desc'], e.args[0].get('info', ''))
             else:
                 # Otherwise, treat as a simple string
                 print(e)
