@@ -558,10 +558,11 @@ Example: group member add staff josoap"""
                     if len(buf[:endidx].split(' ', -1)) >= 5:
                         # Return usernames from the group set to be deleted
                         # ldap_attrs returns a list of tuples (DN, attrs dict)
-                        return [x[x.index('=')+1:x.index(',')] for
-                                x in ld.ldap_attrs("group",
-                                                   buf.split(' ', -1)[3]
-                                                   )[0][1]['member']]
+                        return shellac.complete_list(
+                            [x[x.index('=')+1:x.index(',')] for
+                             x in ld.ldap_attrs("group",
+                                                buf.split(' ', -1)[3]
+                                               )[0][1]['member']], token)
                     else:
                         return ld.ldap_search("group", token)
 
