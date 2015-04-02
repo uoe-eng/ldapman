@@ -521,8 +521,18 @@ Press TAB to see possible completions.
 
             class do_member(object):
 
+                def __init__(self):
+                    getattr(self, 'do_add').completions = [
+                        getattr(self, 'complete_add')]
+
+                def complete_add(self, token=""):
+                    buf = shellac.readline.get_line_buffer()
+                    if len(buf.split(' ', -1)) >= 5:
+                        return ld.ldap_search("user", token)
+                    else:
+                        return ld.ldap_search("group", token)
+
                 @staticmethod
-                @shellac.completer(partial(ld.ldap_search, "group"))
                 @printexceptions
                 def do_add(args):
                     try:
