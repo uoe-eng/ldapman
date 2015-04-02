@@ -505,6 +505,12 @@ Usage: %s edit entry""" % (os.getenv("EDITOR", "/usr/bin/vi"), self.objtype)
 
 
     class LDAPShell(shellac.Shellac, object):
+        """
+LDAPman shell environment
+-------------------------
+
+Press TAB to see possible completions.
+        """
 
         @objtype("user")
         class do_user(LDAPListCommands):
