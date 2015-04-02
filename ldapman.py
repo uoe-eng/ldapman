@@ -522,8 +522,7 @@ Press TAB to see possible completions.
             class do_member(object):
 
                 def __init__(self):
-                    getattr(self, 'do_add').completions = [
-                        getattr(self, 'complete_add')]
+                    self.do_add.completions = [self.complete_add]
 
                 def complete_add(self, token=""):
                     buf = shellac.readline.get_line_buffer()
