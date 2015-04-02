@@ -546,6 +546,7 @@ Example: group member add staff josoap"""
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "group"))
                 @printexceptions
+                @safety_check
                 def do_delete(args):
                     try:
                         group, members = args.split(None, 2)
@@ -593,6 +594,7 @@ Example: netgroup member add students year1"""
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "netgroup"))
                 @printexceptions
+                @safety_check
                 def do_delete(args):
                     try:
                         netgroup, members = args.split(None, 2)
@@ -635,6 +637,7 @@ Example: netgroup triple add staff (,josoap,)"""
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "netgroup"))
                 @printexceptions
+                @safety_check
                 def do_delete(args):
                     try:
                         netgroup, triples = args.split(None, 2)
