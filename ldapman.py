@@ -523,6 +523,7 @@ Press TAB to see possible completions.
 
                 def __init__(self):
                     self.do_add.completions = [self.complete_add]
+                    self.do_delete.completions = [self.complete_delete]
 
                 def complete_add(self, token=""):
                     endidx = shellac.readline.get_endidx()
@@ -550,6 +551,19 @@ Add an entry to the member attribute for a group.
 
 Usage: group member add <group> <member>
 Example: group member add staff josoap"""
+
+                def complete_delete(self, token=""):
+                    endidx = shellac.readline.get_endidx()
+                    buf = shellac.readline.get_line_buffer()
+                    if len(buf[:endidx].split(' ', -1)) >= 5:
+                        # Return usernames from the group set to be deleted
+                        # ldap_attrs returns a list of tuples (DN, attrs dict)
+                        return [x[x.index('=')+1:x.index(',')] for
+                                x in ld.ldap_attrs("group",
+                                                   buf.split(' ', -1)[3]
+                                                   )[0][1]['member']]
+                    else:
+                        return ld.ldap_search("group", token)
 
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "group"))
