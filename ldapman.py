@@ -496,6 +496,14 @@ Usage: %s show entry""" % (self.objtype)
             else:
                 print("No changes made.")
 
+        def help_edit(self, args):
+            return """\
+Open the object(s) in a text editor for editing.
+($EDITOR = %s)
+
+Usage: %s edit entry""" % (os.getenv("EDITOR", "/usr/bin/vi"), self.objtype)
+
+
     class LDAPShell(shellac.Shellac, object):
 
         @objtype("user")
