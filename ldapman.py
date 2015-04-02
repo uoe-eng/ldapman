@@ -421,18 +421,18 @@ Rename an entry.
 Usage: %s rename entry newname""" % (self.objtype)
 
         @printexceptions
-        def do_edit(self, args):
+        def do_modify(self, args):
             try:
                 obj, attr, value = args.split()
                 ld.ldap_replace_attr(self.objtype, obj, attr, value)
             except ValueError:
                 print("Wrong number of arguments supplied. See help for more information.")
 
-        def help_edit(self, args):
+        def help_modify(self, args):
             return """\
 Change the value of an attribute of an entry.
 
-Usage: %s edit entry attr val""" % (self.objtype)
+Usage: %s modify entry attr val""" % (self.objtype)
 
         def do_search(self, args):
             try:
@@ -462,7 +462,7 @@ Show the attributes of an entry.
 Usage: %s show entry""" % (self.objtype)
 
         @printexceptions
-        def do_editor(self, args):
+        def do_edit(self, args):
             result = self.show(args or '*')
             oldentries = dict(result)
             # Parse python-ldap dict into ldif, write into a tempfile
