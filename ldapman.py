@@ -63,19 +63,19 @@ def printexceptions(func):
             return func(*args, **kwargs)
         # Certain errors should be reported, but not raised
         # This gives an error message, but remains in the shell
-        except ldap.LDAPError as e:
+        except ldap.LDAPError as exc:
             # LDAPError may contain a dict with desc and (optional) info fields
-            if isinstance(e.args[0], dict):
-                print(e.args[0]['desc'], e.args[0].get('info', ''))
+            if isinstance(exc.args[0], dict):
+                print(exc.args[0]['desc'], exc.args[0].get('info', ''))
             else:
                 # Otherwise, treat as a simple string
-                print(e)
-        except (ConfigParser.ParsingError, BuildDNError) as e:
-            print(e)
+                print(exc)
+        except (ConfigParser.ParsingError, BuildDNError) as exc:
+            print(exc)
         # Otherwise, print and raise exceptions if debug is enabled
-        except Exception as e:
+        except Exception as exc:
             # FIXME: test for debug flag
-            print(e)
+            print(exc)
             raise
     return new_func
 
@@ -120,7 +120,8 @@ class LDAPSession(object):
 
         tmpf = StringIO()
         ldw = ldif.LDIFWriter(tmpf, cols=99999)
-        [ldw.unparse(*item) for item in pyld]
+        for item in pyld:
+            ldw.unparse(*item)
 
         return tmpf.getvalue()
 
@@ -223,21 +224,21 @@ class LDAPSession(object):
         # Convert the attrs dict into ldif
         ldiff = ldap.modlist.addModlist(attrs)
 
-        dn = self.conf.buildDN(
+        dn = self.conf.build_dn(
             attrs[self.conf[objtype]['filter'].partition('=')[0]],
             objtype, rdn=rdn)
         self.conn.add_s(dn, ldiff)
 
     def ldap_delete(self, objtype, args):
         """Delete an entry by name."""
-        self.conn.delete_s(self.conf.buildDN(args, objtype))
+        self.conn.delete_s(self.conf.build_dn(args, objtype))
 
     def ldap_rename(self, objtype, args):
         """Rename an object. args must be 'name newname'."""
 
         name, newname = args.split()
 
-        self.conn.rename_s(self.conf.buildDN(name, objtype),
+        self.conn.rename_s(self.conf.build_dn(name, objtype),
                            self.conf[objtype]['filter'] % (newname))
 
     def ldap_mod_attr(self, objtype, modmethod, attr, obj, items):
@@ -249,14 +250,14 @@ class LDAPSession(object):
         obj is the object whose attribute we're modifying.
         items is a list of values to create/set attributes to."""
 
-        self.conn.modify_s(self.conf.buildDN(obj, child=objtype),
+        self.conn.modify_s(self.conf.build_dn(obj, child=objtype),
                            [(getattr(ldap, "MOD_" + modmethod.upper()),
                              attr, item) for item in items])
 
     def ldap_replace_attr(self, objtype, obj, attr, value):
         """Replace the value of an object attribute."""
 
-        self.conn.modify_s(self.conf.buildDN(obj, child=objtype),
+        self.conn.modify_s(self.conf.build_dn(obj, child=objtype),
                            [(ldap.MOD_REPLACE, attr, value)])
 
 
@@ -287,7 +288,7 @@ class LDAPConfig(dict):
     These data come from the config file, with some special processing for
     things which look like lists or dicts.
 
-    Include a convenient method, buildDN, to create a DN given an object class,
+    Include a convenient method, build_dn, to create a DN given an object class,
     optional base DN from the config and optional RDN.
 
     """
@@ -311,7 +312,7 @@ class LDAPConfig(dict):
                     self[section]['defaultattrs'] = literal_eval(
                         self[section]['defaultattrs'])
 
-    def buildDN(self, obj, child=None, rdn=""):
+    def build_dn(self, obj, child=None, rdn=""):
         if len(rdn) != 0:
             rdn += ','
         try:
@@ -335,7 +336,7 @@ def shell_factory(ld, config, options, objconf):
     def objtype(objtype):
         """Decorator to add an "objtype" attribute to a class."""
 
-        def annotateObjType(cls):
+        def annotate_obj_type(cls):
             orig_init = getattr(cls, '__init__', None)
 
             def __init__(self, *args, **kwargs):
@@ -345,7 +346,7 @@ def shell_factory(ld, config, options, objconf):
 
             cls.__init__ = __init__
             return cls
-        return annotateObjType
+        return annotate_obj_type
 
     def safe_to_continue():
         if options.force or (options.interactive and raw_input(
@@ -504,7 +505,7 @@ Open the object(s) in a text editor for editing.
 
 Usage: %s edit entry""" % (os.getenv("EDITOR", "/usr/bin/vi"), self.objtype)
 
-    class LDAPShell(shellac.Shellac, object):
+    class LDAPMan(shellac.Shellac, object):
         """
 LDAPman shell environment
 -------------------------
@@ -540,7 +541,7 @@ Press TAB to see possible completions.
                         group, members = args.split(None, 2)
 
                         ld.ldap_mod_attr("group", "add", "member", group,
-                                         [objconf.buildDN(member, child="user") for member in members.split()])
+                                         [objconf.build_dn(member, child="user") for member in members.split()])
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 
@@ -575,7 +576,7 @@ Example: group member add staff josoap"""
                         group, members = args.split(None, 2)
 
                         ld.ldap_mod_attr("group", "delete", "member", group,
-                                         [objconf.buildDN(member, child="user") for member in members.split()])
+                                         [objconf.build_dn(member, child="user") for member in members.split()])
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 
@@ -693,7 +694,7 @@ Example: netgroup member delete ng1 (,josoap,)"""
         class do_dyngroup(LDAPListCommands):
             pass
 
-    return LDAPShell()
+    return LDAPMan()
 
 
 def main():
