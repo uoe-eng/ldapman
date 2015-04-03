@@ -198,16 +198,15 @@ Usage: %s show entry""" % (self.objtype)
 
             adds, mods, dels = util.compare_dicts(oldentries, newentries)
 
-            print("Changes: %d Addition(s), %d Modification(s), %d Deletion(s)." %
-                  (len(adds.keys()), len(mods.keys()), len(dels.keys())))
+            print("Changes: {0:d} Addition(s), {1:d} Modification(s), {2:d} Deletion(s).".format(len(adds.keys()), len(mods.keys()), len(dels.keys())))
 
             if safe_to_continue():
                 for d_name, val in adds.items():
                     ldconn.conn.add_s(d_name, ldap.modlist.addModlist(val))
                 for d_name, (oldval, newval) in mods.items():
                     ldconn.conn.modify_s(d_name,
-                                      ldap.modlist.modifyModlist(oldval,
-                                                                 newval))
+                                         ldap.modlist.modifyModlist(oldval,
+                                                                    newval))
                 for d_name in dels.keys():
                     ldconn.conn.delete_s(d_name)
             else:
@@ -263,7 +262,7 @@ Press TAB to see possible completions.
                         group, members = args.split(None, 2)
 
                         ldconn.ldap_mod_attr("group", "add", "member", group,
-                                          [objconf.build_dn(member, child="user") for member in members.split()])
+                                             [objconf.build_dn(member, child="user") for member in members.split()])
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 
@@ -287,8 +286,8 @@ Example: group member add staff josoap"""
                         return shellac.complete_list(
                             [util.get_rdn(x) for
                              x in ldconn.ldap_attrs("group",
-                                                 buf.split(' ', -1)[3]
-                                                )[0][1]['member']], token)
+                                                    buf.split(' ', -1)[3]
+                                                   )[0][1]['member']], token)
                     else:
                         return ldconn.ldap_search("group", token)
 
@@ -302,7 +301,7 @@ Example: group member add staff josoap"""
                         group, members = args.split(None, 2)
 
                         ldconn.ldap_mod_attr("group", "delete", "member", group,
-                                          [objconf.build_dn(member, child="user") for member in members.split()])
+                                             [objconf.build_dn(member, child="user") for member in members.split()])
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 
@@ -330,8 +329,8 @@ Example: group member delete staff josoap"""
                     try:
                         netgroup, members = args.split(None, 2)
                         ldconn.ldap_mod_attr("netgroup", "add",
-                                          "memberNisNetgroup", netgroup,
-                                          members.split())
+                                             "memberNisNetgroup", netgroup,
+                                             members.split())
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 
@@ -353,8 +352,8 @@ Example: netgroup member add students year1"""
                     try:
                         netgroup, members = args.split(None, 2)
                         ldconn.ldap_mod_attr("netgroup", "delete",
-                                          "memberNisNetgroup", netgroup,
-                                          members.split())
+                                             "memberNisNetgroup", netgroup,
+                                             members.split())
                     except ValueError:
                         print ("Wrong number of arguments supplied. See help for more information.")
 
@@ -378,8 +377,8 @@ Example: netgroup member delete students year1"""
                     try:
                         netgroup, triples = args.split(None, 2)
                         ldconn.ldap_mod_attr("netgroup", "add",
-                                          "nisNetgroupTriple", netgroup,
-                                          triples.split())
+                                             "nisNetgroupTriple", netgroup,
+                                             triples.split())
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 
@@ -401,8 +400,8 @@ Example: netgroup triple add staff (,josoap,)"""
                     try:
                         netgroup, triples = args.split(None, 2)
                         ldconn.ldap_mod_attr("netgroup", "delete",
-                                          "nisNetgroupTriple", netgroup,
-                                          triples.split())
+                                             "nisNetgroupTriple", netgroup,
+                                             triples.split())
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 
