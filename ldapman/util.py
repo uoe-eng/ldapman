@@ -113,6 +113,8 @@ def printexceptions(func):
 
     @wraps(func)
     def new_func(*args, **kwargs):
+        """function returned by the decorator."""
+
         try:
             return func(*args, **kwargs)
         # Certain errors should be reported, but not raised

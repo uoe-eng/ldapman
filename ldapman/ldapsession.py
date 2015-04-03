@@ -1,3 +1,8 @@
+"""Context manager that connects to an LDAP server and maintain a session.
+
+Provides 'high-level' methods to query and manipulate LDAP data.
+"""
+
 from . import util
 
 import ConfigParser
@@ -154,10 +159,10 @@ class LDAPSession(object):
         # Convert the attrs dict into ldif
         ldiff = ldap.modlist.addModlist(attrs)
 
-        dn = self.conf.build_dn(
+        d_n = self.conf.build_dn(
             attrs[self.conf[objtype]['filter'].partition('=')[0]],
             objtype, rdn=rdn)
-        self.conn.add_s(dn, ldiff)
+        self.conn.add_s(d_n, ldiff)
 
     def ldap_delete(self, objtype, args):
         """Delete an entry by name."""
