@@ -1,6 +1,7 @@
 from . import util
 
 import ConfigParser
+import io
 import ldap
 import ldap.sasl
 import ldap.schema

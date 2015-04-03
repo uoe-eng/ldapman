@@ -1,6 +1,13 @@
+"""Utility functions for ldapman."""
+
+from __future__ import print_function
+
+from . import errors
+
 import ConfigParser
 from ast import literal_eval
 from functools import wraps
+from ldap import LDAPError
 from optparse import OptionParser
 
 
@@ -43,9 +50,9 @@ class LDAPConfig(dict):
         except KeyError:
             # Raise as BuildDNError to allow better handling
             raise errors.BuildDNError
-            return "%s,%s%s" % (conf['filter'] % (obj),
-                                rdn,
-                                conf['base'])
+        return "%s,%s%s" % (conf['filter'] % (obj),
+                            rdn,
+                            conf['base'])
 
 
 def compare_dicts(olddict, newdict):
@@ -110,14 +117,14 @@ def printexceptions(func):
             return func(*args, **kwargs)
         # Certain errors should be reported, but not raised
         # This gives an error message, but remains in the shell
-        except ldap.LDAPError as exc:
+        except LDAPError as exc:
             # LDAPError may contain a dict with desc and (optional) info fields
             if isinstance(exc.args[0], dict):
                 print(exc.args[0]['desc'], exc.args[0].get('info', ''))
             else:
                 # Otherwise, treat as a simple string
                 print(exc)
-        except (ConfigParser.ParsingError, BuildDNError) as exc:
+        except (ConfigParser.ParsingError, errors.BuildDNError) as exc:
             print(exc)
         # Otherwise, print and raise exceptions if debug is enabled
         except Exception as exc:
