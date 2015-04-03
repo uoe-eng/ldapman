@@ -3,330 +3,20 @@
 """LDAPMan: a command-line shell for managing LDAP objects."""
 
 from __future__ import print_function
-import shellac
-import ldap
-import ldap.sasl
-import ldap.schema
-import ldap.modlist
+
+from ldapman import errors, ldapsession, util
+
 import ConfigParser
-from optparse import OptionParser
-from functools import partial, wraps
-import io
-from ast import literal_eval
-import inspect
-import os
-import tempfile
-import subprocess
-import fcntl
-import ldif
-from StringIO import StringIO
 import atexit
-
-
-class BuildDNError(Exception):
-    """Errors when constructing a DN in BuildDN method."""
-
-    def __init__(self, args="Error building a DN from supplied arguments."):
-        Exception.__init__(self, args)
-
-
-def compare_dicts(olddict, newdict):
-    """Compare two dictionaries - return a tuple of 3 dictionaries
-        - [0] contains 'adds' as k:v
-        - [1] contains 'modifies' as k:(oldv,newv)
-        - [2] contains 'deletes' as k:None
-
-    """
-
-    adds = {}
-    mods = {}
-    dels = {}
-    for key, val in newdict.items():
-        if key not in olddict:
-            adds[key] = val
-        elif olddict[key] != newdict[key]:
-            mods[key] = (olddict[key], val)
-    for key in olddict:
-        if key not in newdict:
-            dels[key] = None
-
-    return adds, mods, dels
-
-
-def printexceptions(func):
-    """Decorate the given function so that in debugging mode all unhandled
-    tracebacks are printed and re-raised.
-
-    """
-
-    @wraps(func)
-    def new_func(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        # Certain errors should be reported, but not raised
-        # This gives an error message, but remains in the shell
-        except ldap.LDAPError as exc:
-            # LDAPError may contain a dict with desc and (optional) info fields
-            if isinstance(exc.args[0], dict):
-                print(exc.args[0]['desc'], exc.args[0].get('info', ''))
-            else:
-                # Otherwise, treat as a simple string
-                print(exc)
-        except (ConfigParser.ParsingError, BuildDNError) as exc:
-            print(exc)
-        # Otherwise, print and raise exceptions if debug is enabled
-        except Exception as exc:
-            # FIXME: test for debug flag
-            print(exc)
-            raise
-    return new_func
-
-
-class LDAPSession(object):
-    """Container object for connection to an LDAP server."""
-
-    def __init__(self, conf):
-        self.conn = None
-        self.conf = conf
-        self.schema = None
-        self.server = None
-
-    def open(self):
-        """Make a connection to the LDAP server."""
-
-        self.server = self.conf.globalconf.get('global', 'server')
-        self.conn = ldap.initialize(self.server)
-        sasl = ldap.sasl.gssapi()
-        self.conn.sasl_interactive_bind_s('', sasl)
-
-    def close(self):
-        """Close the connection to the LDAP server, if one exists."""
-
-        if self.conn is not None:
-            self.conn.unbind_s()
-            self.conn = None
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # Any thrown exceptions in the context-managed region are ignored.
-        # FIXME: Implement rollback if an exception is raised.
-        self.close()
-        return False  # we do not handle exceptions.
-
-    def __enter__(self):
-        self.open()
-        return self
-
-    @staticmethod
-    def ldap_to_ldif(pyld):
-        """Convert python-ldap list of tuples into ldif string"""
-
-        tmpf = StringIO()
-        ldw = ldif.LDIFWriter(tmpf, cols=99999)
-        for item in pyld:
-            ldw.unparse(*item)
-
-        return tmpf.getvalue()
-
-    @staticmethod
-    def ldif_to_ldap(ldiff):
-        """Convert ldif string into python-ldap list of tuples"""
-
-        tmpf = StringIO()
-        tmpf.write(ldiff)
-        tmpf.seek(0)
-        ldr = ldif.LDIFRecordList(tmpf)
-        ldr.parse()
-        return ldr.all_records
-
-    def ldap_check_schema(self, objtype):
-        """Retrieve the schema from the server, returning (must, may) lists
-        of required and optional attributes of the requested objectclass.
-
-        """
-
-        if self.schema is None:
-            _, self.schema = ldap.schema.urlfetch(self.server)
-        if self.schema is None:
-            raise Exception("Could not fetch schema.")
-
-        must = []
-        may = []
-        for entry in self.conf[objtype]['objectclass']:
-            # attribute_types returns 2 tuples of all must and may attrs,
-            # including recursion into inherited attributes
-            # This always includes 'objectClass' so discard this
-            attrs = self.schema.attribute_types([entry])
-            must.extend([item.names[0] for item in attrs[0].values() if not item.names[0] == "objectClass"])
-            may.extend([item.names[0] for item in attrs[1].values() if not item.names[0] == "objectClass"])
-        return must, may
-
-    def ldap_search(self, objtype, token):
-        """Search the tree for a matching entry."""
-
-        timeout = float(self.conf.globalconf.get('global', 'timeout', vars={'timeout': '-1'}))
-        try:
-            scope = getattr(ldap, self.conf[objtype]['scope'])
-        except KeyError:
-            scope = ldap.SCOPE_ONELEVEL
-        try:
-            result = self.conn.search_st(self.conf[objtype]['base'],
-                                         scope,
-                                         filterstr=self.conf[objtype]['filter'] % (token) + "*",
-                                         timeout=timeout)
-        except ldap.TIMEOUT:
-            raise shellac.CompletionError("Search timed out.")
-
-        # Result is a list of tuples, first item of which is DN
-        # Strip off the base, then parition on = and keep value
-        # Could alternatively split on = and keep first value?
-        return [x[0][x[0].index('=')+1:x[0].index(',')] for x in result]
-
-    def ldap_attrs(self, objtype, token):
-        """Get the attributes of an object."""
-
-        timeout = float(self.conf.globalconf.get('global', 'timeout', vars={'timeout': '-1'}))
-        try:
-            scope = getattr(ldap, self.conf[objtype]['scope'])
-        except KeyError:
-            scope = ldap.SCOPE_ONELEVEL
-
-        try:
-            return self.conn.search_st(self.conf[objtype]['base'],
-                                       scope,
-                                       filterstr=self.conf[objtype]['filter'] % (token),
-                                       timeout=timeout)
-        except ldap.TIMEOUT:
-            raise shellac.CompletionError("Search timed out.")
-
-    @printexceptions
-    def ldap_add(self, objtype, args, rdn=""):
-        """Add an entry. rdn is an optional prefix to the DN."""
-
-        cmdopts = ConfigParser.SafeConfigParser()
-        # Preserve case of keys
-        cmdopts.optionxform = str
-        # Add an 'opts' section header to allow ConfigParser to work
-        args = "[opts]\n" + args.replace(' ', '\n')
-        cmdopts.readfp(io.BytesIO(args))
-
-        attrs = dict(cmdopts.items('opts'))
-
-        # Set objectclass(es) from config file
-        attrs['objectclass'] = self.conf[objtype]['objectclass']
-
-        # Add in any default attrs defined in the config file
-        if self.conf[objtype]['defaultattrs']:
-            attrs.update(self.conf[objtype]['defaultattrs'])
-
-        missing = set(self.conf[objtype]['must']).difference(attrs.keys())
-        if missing:
-            raise ldap.LDAPError(
-                "Missing mandatory attribute(s): %s" % ','.join(missing))
-
-        # Convert the attrs dict into ldif
-        ldiff = ldap.modlist.addModlist(attrs)
-
-        dn = self.conf.build_dn(
-            attrs[self.conf[objtype]['filter'].partition('=')[0]],
-            objtype, rdn=rdn)
-        self.conn.add_s(dn, ldiff)
-
-    def ldap_delete(self, objtype, args):
-        """Delete an entry by name."""
-        self.conn.delete_s(self.conf.build_dn(args, objtype))
-
-    def ldap_rename(self, objtype, args):
-        """Rename an object. args must be 'name newname'."""
-
-        name, newname = args.split()
-
-        self.conn.rename_s(self.conf.build_dn(name, objtype),
-                           self.conf[objtype]['filter'] % (newname))
-
-    def ldap_mod_attr(self, objtype, modmethod, attr, obj, items):
-        """Modify an attribute.
-
-        objtype refers to a config section (for DN root).
-        modmethod can be add or delete.
-        attr is the name of the attribute(s) to be modified.
-        obj is the object whose attribute we're modifying.
-        items is a list of values to create/set attributes to."""
-
-        self.conn.modify_s(self.conf.build_dn(obj, child=objtype),
-                           [(getattr(ldap, "MOD_" + modmethod.upper()),
-                             attr, item) for item in items])
-
-    def ldap_replace_attr(self, objtype, obj, attr, value):
-        """Replace the value of an object attribute."""
-
-        self.conn.modify_s(self.conf.build_dn(obj, child=objtype),
-                           [(ldap.MOD_REPLACE, attr, value)])
-
-
-def parse_opts():
-    """Handle command-line arguments"""
-
-    parser = OptionParser()
-    parser.add_option("-c", "--config", dest="config",
-                      help="Path to configuration file")
-    parser.add_option("-f", "--force", dest="force",
-                      action="store_true", default=False,
-                      help="Don't prompt for confirmation for operations")
-    return parser.parse_args()
-
-
-def parse_config(options):
-    """Read in a config file"""
-
-    config = ConfigParser.SafeConfigParser()
-    # FIXME(mrichar1): Change to a better default
-    config.read(options.config or 'ldapman.conf')
-    return config
-
-
-class LDAPConfig(dict):
-    """Store the config data for an LDAPSession object.
-
-    These data come from the config file, with some special processing for
-    things which look like lists or dicts.
-
-    Include a convenient method, build_dn, to create a DN given an object class,
-    optional base DN from the config and optional RDN.
-
-    """
-
-    def __init__(self, config):
-        super(LDAPConfig, self).__init__(self)
-        self.globalconf = config
-        for section in config.sections():
-            if section != 'global':
-                # Read in all config options
-                self[section] = dict(config.items(section))
-
-                # Some config opts need 'work' before use...
-
-                # Convert objectclass to a list
-                if 'objectclass' in self[section]:
-                    self[section]['objectclass'] = self[section]['objectclass'].split(',')
-
-                # 'safe' eval defaultattrs to extract the dict
-                if 'defaultattrs' in self[section]:
-                    self[section]['defaultattrs'] = literal_eval(
-                        self[section]['defaultattrs'])
-
-    def build_dn(self, obj, child=None, rdn=""):
-        """ Return a DN constructed from a filter, rdn, and base DN."""
-        if len(rdn) != 0:
-            rdn += ','
-        try:
-            conf = self[child] if child is not None else self
-        except KeyError:
-            # Raise as BuildDNError to allow better handling
-            raise BuildDNError
-
-        return "%s,%s%s" % (conf['filter'] % (obj),
-                            rdn,
-                            conf['base'])
+import fcntl
+from functools import partial
+import inspect
+import ldap
+import ldap.modlist
+import os
+import shellac
+import subprocess
+import tempfile
 
 
 def shell_factory(ld, config, options, objconf):
@@ -383,7 +73,7 @@ def shell_factory(ld, config, options, objconf):
             """Default completion method if no explicit method set."""
             return ld.ldap_search(self.objtype, token)
 
-        @printexceptions
+        @util.printexceptions
         def do_add(self, args):
             """Add an LDAP object."""
             ld.ldap_add(self.objtype, args)
@@ -407,7 +97,7 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
                                        ','.join(conf['may']),
                                        self.objtype)
 
-        @printexceptions
+        @util.printexceptions
         @safety_check
         def do_delete(self, args):
             """Delete an LDAP object."""
@@ -420,7 +110,7 @@ Delete an entry.
 
 Usage: %s delete entry""" % (self.objtype)
 
-        @printexceptions
+        @util.printexceptions
         def do_rename(self, args):
             """Rename an LDAP object."""
             try:
@@ -435,7 +125,7 @@ Rename an entry.
 
 Usage: %s rename entry newname""" % (self.objtype)
 
-        @printexceptions
+        @util.printexceptions
         def do_modify(self, args):
             """Modify the attributes of an LDAP object."""
             try:
@@ -483,7 +173,7 @@ Show the attributes of an entry.
 
 Usage: %s show entry""" % (self.objtype)
 
-        @printexceptions
+        @util.printexceptions
         def do_edit(self, args):
             """Edit the ldif of an LDAP object with $EDITOR."""
             result = self.show(args or '*')
@@ -503,7 +193,7 @@ Usage: %s show entry""" % (self.objtype)
                 tmpf.seek(0, 0)
                 newentries = dict(ld.ldif_to_ldap(tmpf.read()))
 
-            adds, mods, dels = compare_dicts(oldentries, newentries)
+            adds, mods, dels = util.compare_dicts(oldentries, newentries)
 
             print("Changes: %d Addition(s), %d Modification(s), %d Deletion(s)." %
                   (len(adds.keys()), len(mods.keys()), len(dels.keys())))
@@ -562,7 +252,7 @@ Press TAB to see possible completions.
                         return ld.ldap_search("group", token)
 
                 @staticmethod
-                @printexceptions
+                @util.printexceptions
                 def do_add(args):
                     """add method for group member."""
                     try:
@@ -591,7 +281,7 @@ Example: group member add staff josoap"""
                         # Return usernames from the group set to be deleted
                         # ldap_attrs returns a list of tuples (DN, attrs dict)
                         return shellac.complete_list(
-                            [x[x.index('=')+1:x.index(',')] for
+                            [util.get_rdn(x) for
                              x in ld.ldap_attrs("group",
                                                 buf.split(' ', -1)[3]
                                                )[0][1]['member']], token)
@@ -600,7 +290,7 @@ Example: group member add staff josoap"""
 
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "group"))
-                @printexceptions
+                @util.printexceptions
                 @safety_check
                 def do_delete(args):
                     """delete method for group member."""
@@ -630,7 +320,7 @@ Example: group member delete staff josoap"""
 
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "netgroup"))
-                @printexceptions
+                @util.printexceptions
                 def do_add(args):
                     """add method for netgroup member."""
                     try:
@@ -652,7 +342,7 @@ Example: netgroup member add students year1"""
 
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "netgroup"))
-                @printexceptions
+                @util.printexceptions
                 @safety_check
                 def do_delete(args):
                     """delete method for netgroup member."""
@@ -678,7 +368,7 @@ Example: netgroup member delete students year1"""
 
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "netgroup"))
-                @printexceptions
+                @util.printexceptions
                 def do_add(args):
                     """add method for netgroup triple."""
                     try:
@@ -700,7 +390,7 @@ Example: netgroup triple add staff (,josoap,)"""
 
                 @staticmethod
                 @shellac.completer(partial(ld.ldap_search, "netgroup"))
-                @printexceptions
+                @util.printexceptions
                 @safety_check
                 def do_delete(args):
                     """delete method for netgroup member."""
@@ -731,7 +421,7 @@ Example: netgroup member delete ng1 (,josoap,)"""
                 pass
 
             @shellac.completer(partial(ld.ldap_search, "automount"))
-            @printexceptions
+            @util.printexceptions
             def do_add(self, args):
                 """add method for automount."""
                 rdn = [x for x in args.split() if x.startswith('nisMapName')][0]
@@ -747,8 +437,8 @@ Example: netgroup member delete ng1 (,josoap,)"""
 
 def main():
     """Start here."""
-    options, args = parse_opts()
-    config = parse_config(options)
+    options, args = util.parse_opts()
+    config = util.parse_config(options)
 
     options.interactive = len(args) == 0
 
@@ -761,10 +451,10 @@ def main():
         pass
 
     # Create the objconf dict
-    objconf = LDAPConfig(config)
+    objconf = util.LDAPConfig(config)
 
     # Bind the LDAP, so that our shell objects can access it
-    with LDAPSession(objconf) as ld:
+    with ldapsession.LDAPSession(objconf) as ld:
 
         shell = shell_factory(ld, config, options, objconf)
         if options.interactive:
