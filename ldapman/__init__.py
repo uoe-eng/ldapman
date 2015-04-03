@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 """LDAPMan: a command-line shell for managing LDAP objects."""
 
 from __future__ import print_function

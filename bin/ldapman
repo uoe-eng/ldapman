@@ -1,0 +1,16 @@
+#!/usr/bin/python
+
+"""Wrapper to load ldapman shell package and run it."""
+
+import ldapman
+import sys
+
+if sys.hexversion < 0x02060000:
+    print >>sys.stderr, "Error: Python 2.6 or greater required."
+    sys.exit(1)
+
+def main():
+    ldapman.main()
+
+if __name__ == "__main__":
+    main()
