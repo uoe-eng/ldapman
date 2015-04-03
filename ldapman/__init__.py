@@ -9,7 +9,6 @@ import atexit
 import fcntl
 from functools import partial
 import inspect
-import ldap
 import ldap.modlist
 import os
 import shellac
