@@ -159,10 +159,10 @@ class LDAPSession(object):
         # Convert the attrs dict into ldif
         ldiff = ldap.modlist.addModlist(attrs)
 
-        d_n = self.conf.build_dn(
+        d_name = self.conf.build_dn(
             attrs[self.conf[objtype]['filter'].partition('=')[0]],
             objtype, rdn=rdn)
-        self.conn.add_s(d_n, ldiff)
+        self.conn.add_s(d_name, ldiff)
 
     def ldap_delete(self, objtype, args):
         """Delete an entry by name."""

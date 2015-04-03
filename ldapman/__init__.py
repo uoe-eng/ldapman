@@ -16,13 +16,13 @@ import subprocess
 import tempfile
 
 
-def shell_factory(l_d, config, options, objconf):
+def shell_factory(ldconn, config, options, objconf):
     """Factory to generate ldapman shells."""
 
     # Get schema info from the LDAP
     for section in config.sections():
         if section != 'global':
-            objconf[section]['must'], objconf[section]['may'] = l_d.ldap_check_schema(section)
+            objconf[section]['must'], objconf[section]['may'] = ldconn.ldap_check_schema(section)
 
     # Create a decorator for LDAPListCommands subclasses.
     def objtype(objtype):
@@ -74,12 +74,12 @@ def shell_factory(l_d, config, options, objconf):
 
         def complete_default(self, token=""):
             """Default completion method if no explicit method set."""
-            return l_d.ldap_search(self.objtype, token)
+            return ldconn.ldap_search(self.objtype, token)
 
         @util.printexceptions
         def do_add(self, args):
             """Add an LDAP object."""
-            l_d.ldap_add(self.objtype, args)
+            ldconn.ldap_add(self.objtype, args)
 
         def complete_add(self, token=""):
             """Completion method for do_add."""
@@ -104,7 +104,7 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
         @safety_check
         def do_delete(self, args):
             """Delete an LDAP object."""
-            l_d.ldap_delete(self.objtype, args)
+            ldconn.ldap_delete(self.objtype, args)
 
         def help_delete(self, args):
             """help method for do_delete."""
@@ -117,7 +117,7 @@ Usage: %s delete entry""" % (self.objtype)
         def do_rename(self, args):
             """Rename an LDAP object."""
             try:
-                l_d.ldap_rename(self.objtype, args)
+                ldconn.ldap_rename(self.objtype, args)
             except ValueError:
                 print("Wrong number of arguments supplied. See help for more information.")
 
@@ -126,14 +126,14 @@ Usage: %s delete entry""" % (self.objtype)
             return """\
 Rename an entry.
 
-Usage: %s rename entry newname""" % (self.objtype)
+Usage: {0} rename entry newname""".format(self.objtype)
 
         @util.printexceptions
         def do_modify(self, args):
             """Modify the attributes of an LDAP object."""
             try:
                 obj, attr, value = args.split()
-                l_d.ldap_replace_attr(self.objtype, obj, attr, value)
+                ldconn.ldap_replace_attr(self.objtype, obj, attr, value)
             except ValueError:
                 print("Wrong number of arguments supplied. See help for more information.")
 
@@ -147,7 +147,7 @@ Usage: %s modify entry attr val""" % (self.objtype)
         def do_search(self, args):
             """Search for LDAP objects."""
             try:
-                print(l_d.ldap_search(self.objtype, args))
+                print(ldconn.ldap_search(self.objtype, args))
             except shellac.CompletionError:
                 print("Search timed out.")
 
@@ -160,12 +160,12 @@ Usage: %s search pattern""" % (self.objtype)
 
         def do_show(self, args):
             """Show the attributes of an LDAP object."""
-            print(l_d.ldap_to_ldif(self.show(args)))
+            print(ldconn.ldap_to_ldif(self.show(args)))
 
         def show(self, args):
             """Gets an object's attributes for do_show method."""
             try:
-                return l_d.ldap_attrs(self.objtype, args)
+                return ldconn.ldap_attrs(self.objtype, args)
             except shellac.CompletionError:
                 return "Search timed out."
 
@@ -183,7 +183,7 @@ Usage: %s show entry""" % (self.objtype)
             oldentries = dict(result)
             # Parse python-ldap dict into ldif, write into a tempfile
             with tempfile.TemporaryFile() as tmpf:
-                tmpf.write(l_d.ldap_to_ldif(result))
+                tmpf.write(ldconn.ldap_to_ldif(result))
                 tmpf.seek(0, 0)
                 fcntl.fcntl(tmpf.fileno(), fcntl.F_SETFD, 0)  # clear FD_CLOEXEC
                 # Open the tempfile in an editor
@@ -194,7 +194,7 @@ Usage: %s show entry""" % (self.objtype)
 
                 # Parse the tempfile ldif back to a dict, then close tempfile
                 tmpf.seek(0, 0)
-                newentries = dict(l_d.ldif_to_ldap(tmpf.read()))
+                newentries = dict(ldconn.ldif_to_ldap(tmpf.read()))
 
             adds, mods, dels = util.compare_dicts(oldentries, newentries)
 
@@ -202,14 +202,14 @@ Usage: %s show entry""" % (self.objtype)
                   (len(adds.keys()), len(mods.keys()), len(dels.keys())))
 
             if safe_to_continue():
-                for d_n, val in adds.items():
-                    l_d.conn.add_s(d_n, ldap.modlist.addModlist(val))
-                for d_n, (oldval, newval) in mods.items():
-                    l_d.conn.modify_s(d_n,
+                for d_name, val in adds.items():
+                    ldconn.conn.add_s(d_name, ldap.modlist.addModlist(val))
+                for d_name, (oldval, newval) in mods.items():
+                    ldconn.conn.modify_s(d_name,
                                       ldap.modlist.modifyModlist(oldval,
                                                                  newval))
-                for d_n in dels.keys():
-                    l_d.conn.delete_s(d_n)
+                for d_name in dels.keys():
+                    ldconn.conn.delete_s(d_name)
             else:
                 print("No changes made.")
 
@@ -251,9 +251,9 @@ Press TAB to see possible completions.
                     endidx = shellac.readline.get_endidx()
                     buf = shellac.readline.get_line_buffer()
                     if len(buf[:endidx].split(' ', -1)) >= 5:
-                        return l_d.ldap_search("user", token)
+                        return ldconn.ldap_search("user", token)
                     else:
-                        return l_d.ldap_search("group", token)
+                        return ldconn.ldap_search("group", token)
 
                 @staticmethod
                 @util.printexceptions
@@ -262,7 +262,7 @@ Press TAB to see possible completions.
                     try:
                         group, members = args.split(None, 2)
 
-                        l_d.ldap_mod_attr("group", "add", "member", group,
+                        ldconn.ldap_mod_attr("group", "add", "member", group,
                                           [objconf.build_dn(member, child="user") for member in members.split()])
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
@@ -286,14 +286,14 @@ Example: group member add staff josoap"""
                         # ldap_attrs returns a list of tuples (DN, attrs dict)
                         return shellac.complete_list(
                             [util.get_rdn(x) for
-                             x in l_d.ldap_attrs("group",
+                             x in ldconn.ldap_attrs("group",
                                                  buf.split(' ', -1)[3]
                                                 )[0][1]['member']], token)
                     else:
-                        return l_d.ldap_search("group", token)
+                        return ldconn.ldap_search("group", token)
 
                 @staticmethod
-                @shellac.completer(partial(l_d.ldap_search, "group"))
+                @shellac.completer(partial(ldconn.ldap_search, "group"))
                 @util.printexceptions
                 @safety_check
                 def do_delete(args):
@@ -301,7 +301,7 @@ Example: group member add staff josoap"""
                     try:
                         group, members = args.split(None, 2)
 
-                        l_d.ldap_mod_attr("group", "delete", "member", group,
+                        ldconn.ldap_mod_attr("group", "delete", "member", group,
                                           [objconf.build_dn(member, child="user") for member in members.split()])
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
@@ -323,13 +323,13 @@ Example: group member delete staff josoap"""
                 """Add a member menu item."""
 
                 @staticmethod
-                @shellac.completer(partial(l_d.ldap_search, "netgroup"))
+                @shellac.completer(partial(ldconn.ldap_search, "netgroup"))
                 @util.printexceptions
                 def do_add(args):
                     """add method for netgroup member."""
                     try:
                         netgroup, members = args.split(None, 2)
-                        l_d.ldap_mod_attr("netgroup", "add",
+                        ldconn.ldap_mod_attr("netgroup", "add",
                                           "memberNisNetgroup", netgroup,
                                           members.split())
                     except ValueError:
@@ -345,14 +345,14 @@ Usage: netgroup member add <group> <member>
 Example: netgroup member add students year1"""
 
                 @staticmethod
-                @shellac.completer(partial(l_d.ldap_search, "netgroup"))
+                @shellac.completer(partial(ldconn.ldap_search, "netgroup"))
                 @util.printexceptions
                 @safety_check
                 def do_delete(args):
                     """delete method for netgroup member."""
                     try:
                         netgroup, members = args.split(None, 2)
-                        l_d.ldap_mod_attr("netgroup", "delete",
+                        ldconn.ldap_mod_attr("netgroup", "delete",
                                           "memberNisNetgroup", netgroup,
                                           members.split())
                     except ValueError:
@@ -371,13 +371,13 @@ Example: netgroup member delete students year1"""
                 """Add a triple menu item."""
 
                 @staticmethod
-                @shellac.completer(partial(l_d.ldap_search, "netgroup"))
+                @shellac.completer(partial(ldconn.ldap_search, "netgroup"))
                 @util.printexceptions
                 def do_add(args):
                     """add method for netgroup triple."""
                     try:
                         netgroup, triples = args.split(None, 2)
-                        l_d.ldap_mod_attr("netgroup", "add",
+                        ldconn.ldap_mod_attr("netgroup", "add",
                                           "nisNetgroupTriple", netgroup,
                                           triples.split())
                     except ValueError:
@@ -393,14 +393,14 @@ Usage: netgroup triple add <groupname> <triple>
 Example: netgroup triple add staff (,josoap,)"""
 
                 @staticmethod
-                @shellac.completer(partial(l_d.ldap_search, "netgroup"))
+                @shellac.completer(partial(ldconn.ldap_search, "netgroup"))
                 @util.printexceptions
                 @safety_check
                 def do_delete(args):
                     """delete method for netgroup member."""
                     try:
                         netgroup, triples = args.split(None, 2)
-                        l_d.ldap_mod_attr("netgroup", "delete",
+                        ldconn.ldap_mod_attr("netgroup", "delete",
                                           "nisNetgroupTriple", netgroup,
                                           triples.split())
                     except ValueError:
@@ -424,12 +424,12 @@ Example: netgroup member delete ng1 (,josoap,)"""
                 """Placeholder for automount maps menu."""
                 pass
 
-            @shellac.completer(partial(l_d.ldap_search, "automount"))
+            @shellac.completer(partial(ldconn.ldap_search, "automount"))
             @util.printexceptions
             def do_add(self, args):
                 """add method for automount."""
                 rdn = [x for x in args.split() if x.startswith('nisMapName')][0]
-                l_d.ldap_add(self.objtype, args, rdn=rdn)
+                ldconn.ldap_add(self.objtype, args, rdn=rdn)
 
         @objtype("dyngroup")
         class do_dyngroup(LDAPListCommands):
@@ -458,9 +458,9 @@ def main():
     objconf = util.LDAPConfig(config)
 
     # Bind the LDAP, so that our shell objects can access it
-    with ldapsession.LDAPSession(objconf) as l_d:
+    with ldapsession.LDAPSession(objconf) as ldconn:
 
-        shell = shell_factory(l_d, config, options, objconf)
+        shell = shell_factory(ldconn, config, options, objconf)
         if options.interactive:
             shell.cmdloop()
         else:
