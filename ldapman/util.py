@@ -50,9 +50,9 @@ class LDAPConfig(dict):
         except KeyError:
             # Raise as BuildDNError to allow better handling
             raise errors.BuildDNError
-        return "%s,%s%s" % (conf['filter'] % (obj),
-                            rdn,
-                            conf['base'])
+        return "{0}={1},{2}{3}".format(conf['filter'],(obj),
+                                       rdn,
+                                       conf['base'])
 
 
 def compare_dicts(olddict, newdict):

@@ -158,7 +158,7 @@ class LDAPSession(object):
         missing = set(self.conf[objtype]['must']).difference(attrs.keys())
         if missing:
             raise ldap.LDAPError(
-                "Missing mandatory attribute(s): %s" % ','.join(missing))
+                "Missing mandatory attribute(s): {0}".format(','.join(missing)))
 
         # Convert the attrs dict into ldif
         ldiff = ldap.modlist.addModlist(attrs)

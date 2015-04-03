@@ -93,12 +93,12 @@ def shell_factory(ldconn, config, options, objconf):
 Add a new entry.
 
 Attributes for this entry:
-Must include: %s
-May include : %s
+Must include: {0}
+May include : {1}
 
-Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
-                                       ','.join(conf['may']),
-                                       self.objtype)
+Usage: {2} add attr=x [attr=y...]""".format(','.join(conf['must']),
+                                            ','.join(conf['may']),
+                                            self.objtype)
 
         @util.printexceptions
         @safety_check
@@ -111,7 +111,7 @@ Usage: %s add attr=x [attr=y...]""" % (','.join(conf['must']),
             return """\
 Delete an entry.
 
-Usage: %s delete entry""" % (self.objtype)
+Usage: {0} delete entry""".format(self.objtype)
 
         @util.printexceptions
         def do_rename(self, args):
@@ -142,7 +142,7 @@ Usage: {0} rename entry newname""".format(self.objtype)
             return """\
 Change the value of an attribute of an entry.
 
-Usage: %s modify entry attr val""" % (self.objtype)
+Usage: {0} modify entry attr val""".format(self.objtype)
 
         def do_search(self, args):
             """Search for LDAP objects."""
@@ -156,7 +156,7 @@ Usage: %s modify entry attr val""" % (self.objtype)
             return """\
 Search for entries which start with a pattern.
 
-Usage: %s search pattern""" % (self.objtype)
+Usage: {0} search pattern""".format(self.objtype)
 
         def do_show(self, args):
             """Show the attributes of an LDAP object."""
@@ -174,7 +174,7 @@ Usage: %s search pattern""" % (self.objtype)
             return """\
 Show the attributes of an entry.
 
-Usage: %s show entry""" % (self.objtype)
+Usage: {0} show entry""".format(self.objtype)
 
         @util.printexceptions
         def do_edit(self, args):
@@ -188,7 +188,8 @@ Usage: %s show entry""" % (self.objtype)
                 fcntl.fcntl(tmpf.fileno(), fcntl.F_SETFD, 0)  # clear FD_CLOEXEC
                 # Open the tempfile in an editor
                 if subprocess.call([os.getenv('EDITOR', "/usr/bin/vi"),
-                                    '/dev/fd/%d' % tmpf.fileno()]) != 0:
+                                    '/dev/fd/{0:d}'.format(
+                                        tmpf.fileno())]) != 0:
                     print("Editor exited non-zero, aborting.")
                     return
 
@@ -216,9 +217,10 @@ Usage: %s show entry""" % (self.objtype)
             """help method for do_edit."""
             return """\
 Open the object(s) in a text editor for editing.
-($EDITOR = %s)
+($EDITOR = {0})
 
-Usage: %s edit entry""" % (os.getenv("EDITOR", "/usr/bin/vi"), self.objtype)
+Usage: {1} edit entry""".format(os.getenv("EDITOR", "/usr/bin/vi"),
+                                self.objtype)
 
     class LDAPMan(shellac.Shellac, object):
         """
