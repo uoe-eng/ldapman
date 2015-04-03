@@ -105,7 +105,9 @@ class LDAPSession(object):
         try:
             result = self.conn.search_st(self.conf[objtype]['base'],
                                          scope,
-                                         filterstr=self.conf[objtype]['filter'] % (token) + "*",
+                                         filterstr="{0}={1}*".format(
+                                             self.conf[objtype]['filter'],
+                                             token),
                                          timeout=timeout)
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
@@ -127,7 +129,9 @@ class LDAPSession(object):
         try:
             return self.conn.search_st(self.conf[objtype]['base'],
                                        scope,
-                                       filterstr=self.conf[objtype]['filter'] % (token),
+                                       filterstr="{0}={1}".format(
+                                           self.conf[objtype]['filter'],
+                                           token),
                                        timeout=timeout)
         except ldap.TIMEOUT:
             raise shellac.CompletionError("Search timed out.")
