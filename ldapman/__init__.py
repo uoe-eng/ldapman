@@ -4,7 +4,7 @@
 
 from __future__ import print_function
 
-from ldapman import errors, ldapsession, util
+from . import errors, ldapsession, util
 
 import ConfigParser
 import atexit
@@ -462,6 +462,3 @@ def main():
         else:
             shell.onecmd(' '.join(args))
 
-
-if __name__ == "__main__":
-    main()
