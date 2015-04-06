@@ -97,7 +97,11 @@ class LDAPSession(object):
     def ldap_search(self, objtype, token):
         """Search the tree for a matching entry."""
 
-        timeout = float(self.conf.globalconf.get('global', 'timeout', vars={'timeout': '-1'}))
+        timeout = -1
+        try:
+            timeout = float(self.conf.globalconf.get('global', 'timeout'))
+        except ConfigParser.Error:
+            pass
         try:
             scope = getattr(ldap, self.conf[objtype]['scope'])
         except KeyError:
