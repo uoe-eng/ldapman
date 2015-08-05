@@ -1,0 +1,179 @@
+ldapman
+-------
+:language: python
+
++ldapman+ is a command-line ldap management tool, loosely inspired by the https://www.samba.org/[Samba] project's +net+ command.  It uses the https://github.com/mrichar1/shellac[shellac] command-shell to allow tab-completion and command nesting, simplifying common ldap tasks.
+
++ldapman+ has a simlpe configuration file, which allows you to define default OUs within your ldap infrastructure for common types - users, groups, netgroups, etc.  This allows you to create, modify and remove objects without having to specify full DNs.
+
++ldapman+ makes many assumptions about the layout of common ldap trees and schemas in order to simplify everyday tasks. For example, when adding group members +ldapman+ will auto-complete from the users OU as defined in your configuration. This means that you only need to know the group name and user name and don't have to handle long DNs or complex ldif.
+
+This documentation aims to highlight some of the features of ldapman, but it is not a complete reference. The best approach to learning +ldapman+ is to fire it up and explore the command-shell using the auto-complete features.
+
+Using +ldapman+
+~~~~~~~~~~~~~~~
+
+Configuration
+^^^^^^^^^^^^^
+
+An example configuration file is provided with the project. There are 2 configuration seciton types - global carries global configuration, and sections which apply to common ldap object types (user, group, automap, automount, netgroup, dyngroup). Most fields should be obvious, but there are some which are worth explaining in the object type configuration sections:
+
+----
+filter: The object attribute to use when searching/filtering commands.
+
+objectclass: This is used during object creation to validate data based on the schema associated with the object classes in this (comma-separated) list.
+
+defaultattrs: A dictionary of attributes and their values which should be applied to all new objects of this type. This allows you to for example create all groups with default membership.
+----
+
+
+Command Shell
+^^^^^^^^^^^^^^
+
+Start by launching the ldapman command-shell:
+
+[source]
+----
+$ ldapman
+----
+
+You can now press <Tab> to see the possible completions:
+
+[source]
+----
+(LDAPMan) <Tab>
+dyngroup    group       netgroup
+automount   exit        help        user
+----
+
+Let's list all group sub-commands:
+
+[source]
+----
+(LDAPMan) group <Tab>
+add      delete   edit     member   modify   rename   search   show
+----
+
+Help can be obtained on any of the sub-commands:
+
+[source]
+----
+(LDAPMan) help group search
+Search for entries which start with a pattern.
+
+Usage: group search pattern
+----
+
+Lets list all groups:
+
+[source]
+----
+(LDAPMan) group search <Tab>
+apples    cats    camels    houses    bikes    frog
+----
+
+We can also filter our search:
+
+[source]
+----
+(LDAPMan) group search ca <Tab>
+cats    camels
+----
+
+Now lets look at the membership of a group:
+
+[source]
+----
+(LDAPMan) group show apples
+dn: cn=admins,ou=group,ou=company,dc=ldap,dc=example,dc=com
+cn: apples
+member: uid=alice,ou=people,ou=company,dc=ldap,dc=example,dc=com
+member: uid=bob,ou=people,ou=company,dc=ldap,dc=example,dc=com
+member: uid=charles,ou=people,ou=company,dc=ldap,dc=example,dc=com
+objectClass: groupOfNames
+objectClass: posixGroup
+----
+
+Lets add a new group - Tab here shows us the attributes that can be specified:
+
+[source]
+----
+(LDAPMan) group add <Tab>
+businessCategory   gidNumber          o                  seeAlso
+cn                 member             ou                 userPassword
+description        memberUid          owner
+
+(LDAPMan) group add cn=pears
+Missing mandatory attribute(s): gidNumber
+
+(LDAPMan) group add cn=pears gidNumber=12345
+
+(LDAPMan) group show pears
+dn: cn=pears,ou=group,ou=company,dc=ldap,dc=example,dc=com
+cn: pears
+gidNumber: 12345
+member:
+objectClass: groupOfNames
+objectClass: posixGroup
+----
+
+Now lets add a member to a group:
+
+[source]
+----
+(LDAPMan) group member add <Tab>
+apples    cats    camels    houses    bikes    frog    pears
+
+(LDAPMan) group member add pears <Tab>
+alice bob charles
+
+(LDAPMan) group member add pears alice
+
+(LDAPMan) group show pears
+...
+member: uid=alice,ou=people,ou=company,dc=ldap,dc=example,dc=com
+----
+
+
+All commands have an 'edit' subcommand - this will convert the requested object to ldif, open it in your favourite editor (as set by $EDITOR) and, if saved, write back to the LDAP.
+
+TIP: Note that 'edit' without options will attempt to open all objects in that category as one ldif.
+
+
+Command-line scripting
+^^^^^^^^^^^^^^^^^^^^^^
+
+As well as being used as an interactive shell, +ldapman+ can also accept commands in a scriptable way.
+
+[source]
+----
+$ ldapman group show pears
+dn: cn=pears,ou=group,ou=company,dc=ldap,dc=example,dc=com
+cn: pears
+gidNumber: 12345
+member:
+member: uid=alice,ou=people,ou=company,dc=ldap,dc=example,dc=com
+objectClass: groupOfNames
+objectClass: posixGroup
+----
+
+This allows you to run a series of commands by writing +ldapman+-formatted commands to a file and reading from that file:
+
+[source]
+----
+$ cat cmds.txt
+group add cn=fish gidNumber=54321
+group member add fish bob
+group member add fish charles
+group show fish
+
+$ ldapman < cmds.txt
+dn: cn=fish,ou=group,ou=company,dc=ldap,dc=example,dc=com
+cn: fish
+gidNumber: 54321
+member:
+member: uid=bob,ou=people,ou=company,dc=ldap,dc=example,dc=com
+member: uid=charles,ou=people,ou=company,dc=ldap,dc=example,dc=com
+objectClass: groupOfNames
+objectClass: posixGroup
+----
