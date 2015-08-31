@@ -197,8 +197,8 @@ class LDAPSession(object):
                            [(getattr(ldap, "MOD_" + modmethod.upper()),
                              attr, item) for item in items])
 
-    def ldap_replace_attr(self, objtype, obj, attr, value):
+    def ldap_replace_attr(self, objtype, obj, attr, value, rdn=""):
         """Replace the value of an object attribute."""
 
-        self.conn.modify_s(self.conf.build_dn(obj, child=objtype),
+        self.conn.modify_s(self.conf.build_dn(obj, child=objtype, rdn=rdn),
                            [(ldap.MOD_REPLACE, attr, value)])

@@ -432,6 +432,24 @@ Example: netgroup member delete ng1 (,josoap,)"""
                 rdn = [x for x in args.split() if x.startswith('nisMapName')][0]
                 ldconn.ldap_add(self.objtype, args, rdn=rdn)
 
+            @shellac.completer(partial(ldconn.ldap_search, "automount"))
+            @util.printexceptions
+            def do_modify(self, args):
+                """Modify the attributes of an automount object."""
+                try:
+                    obj, attr, value = args.split(' ', 2)
+                except ValueError:
+                    print("Wrong number of arguments supplied. See help for more information.")
+                # automount objects are children of maps
+                # Find the map which the child corresponds to
+                map_name = ldconn.ldap_attrs("automount",
+                                             obj)[0][1]['nisMapName'][0]
+
+                ldconn.ldap_replace_attr(self.objtype, obj, attr, value,
+                                         rdn="{k}={v}".format(k="nisMapName",
+                                                              v=map_name))
+
+
         @objtype("dyngroup")
         class do_dyngroup(LDAPListCommands):
             """Placeholder for dynamic groups menu."""
