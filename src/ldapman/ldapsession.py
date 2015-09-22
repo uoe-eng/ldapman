@@ -172,9 +172,9 @@ class LDAPSession(object):
             objtype, rdn=rdn)
         self.conn.add_s(d_name, ldiff)
 
-    def ldap_delete(self, objtype, args):
+    def ldap_delete(self, objtype, args, rdn=""):
         """Delete an entry by name."""
-        self.conn.delete_s(self.conf.build_dn(args, objtype))
+        self.conn.delete_s(self.conf.build_dn(args, objtype, rdn))
 
     def ldap_rename(self, objtype, args):
         """Rename an object. args must be 'name newname'."""

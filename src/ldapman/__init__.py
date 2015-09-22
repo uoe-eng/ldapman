@@ -452,8 +452,14 @@ Example: netgroup member delete ng1 (,josoap,)"""
             @util.printexceptions
             def do_delete(self, args):
                 """delete method for automount."""
-                rdn = ''.join([x for x in args.split() if x.startswith('nisMapName')])
-                ldconn.ldap_delete(self.objtype, args, rdn=rdn)
+                # automount objects are children of maps
+                # Find the map which the child corresponds to
+                map_name = ldconn.ldap_attrs("automount",
+                                             args.split()[0])[0][1]['nisMapName'][0]
+
+                ldconn.ldap_delete(self.objtype, args,
+                                   rdn="{k}={v}".format(k="nisMapName",
+                                                              v=map_name))
 
         @objtype("dyngroup")
         class do_dyngroup(LDAPListCommands):
