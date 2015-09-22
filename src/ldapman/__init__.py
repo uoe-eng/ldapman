@@ -429,7 +429,7 @@ Example: netgroup member delete ng1 (,josoap,)"""
             @util.printexceptions
             def do_add(self, args):
                 """add method for automount."""
-                rdn = [x for x in args.split() if x.startswith('nisMapName')][0]
+                rdn = ''.join([x for x in args.split() if x.startswith('nisMapName')])
                 ldconn.ldap_add(self.objtype, args, rdn=rdn)
 
             @shellac.completer(partial(ldconn.ldap_search, "automount"))
@@ -448,7 +448,12 @@ Example: netgroup member delete ng1 (,josoap,)"""
                 ldconn.ldap_replace_attr(self.objtype, obj, attr, value,
                                          rdn="{k}={v}".format(k="nisMapName",
                                                               v=map_name))
-
+            @shellac.completer(partial(ldconn.ldap_search, "automount"))
+            @util.printexceptions
+            def do_delete(self, args):
+                """delete method for automount."""
+                rdn = ''.join([x for x in args.split() if x.startswith('nisMapName')])
+                ldconn.ldap_delete(self.objtype, args, rdn=rdn)
 
         @objtype("dyngroup")
         class do_dyngroup(LDAPListCommands):
