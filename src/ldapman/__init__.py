@@ -476,6 +476,11 @@ def main():
 
     options.interactive = len(args) == 0
 
+    # Alter readline's set of completion delim characters to better match
+    # what LDAP treats as 'special' characters
+    # Best-guess based on: https://www.ietf.org/rfc/rfc4514.txt 2.4
+    shellac.readline.set_completer_delims(' \t\n#=+\\",<>')
+
     # Try to read the ldapman history file
     hist_file = os.environ['HOME'] + '/.ldapman_history'
     try:
