@@ -159,8 +159,8 @@ Search for entries which start with a pattern.
 Usage: {0} search pattern""".format(self.objtype)
 
         def do_show(self, args):
-            """Show the attributes of an LDAP object."""
-            print(ldconn.ldap_to_ldif(self.show(args)))
+            """Show the attributes of a list of LDAP objects."""
+            print('\n'.join(ldconn.ldap_to_ldif(self.show(arg)) for arg in args.split()))
 
         def show(self, args):
             """Gets an object's attributes for do_show method."""
