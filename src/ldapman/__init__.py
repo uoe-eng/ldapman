@@ -249,9 +249,14 @@ Press TAB to see possible completions.
                 @staticmethod
                 def complete_add(token=""):
                     """complete method for do_add."""
+
+                    # If the line looks like "group member add gr..." look for
+                    # group names to tab complete. If a group name has already
+                    # been supplied, tab complete on user names.
                     endidx = shellac.readline.get_endidx()
                     buf = shellac.readline.get_line_buffer()
                     if len(buf[:endidx].split(' ', -1)) >= 5:
+                        # Group name given.
                         return ldconn.ldap_search("user", token)
                     else:
                         return ldconn.ldap_search("group", token)
