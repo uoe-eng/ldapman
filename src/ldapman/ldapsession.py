@@ -3,8 +3,6 @@
 Provides 'high-level' methods to query and manipulate LDAP data.
 """
 
-from . import util
-
 import ConfigParser
 import io
 import ldap
@@ -12,7 +10,6 @@ import ldap.sasl
 import ldap.schema
 import ldap.modlist
 import ldif
-import shellac
 from StringIO import StringIO
 
 

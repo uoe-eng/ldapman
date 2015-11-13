@@ -295,7 +295,7 @@ Example: group member add staff josoap"""
                             [util.get_rdn(x) for
                              x in ldconn.ldap_attrs("group",
                                                     buf.split(' ', -1)[3]
-                                                   )[0][1]['member']], token)
+                                                    )[0][1]['member']], token)
                     else:
                         return ldconn.ldap_search("group", token)
 
@@ -454,6 +454,7 @@ Example: netgroup member delete ng1 (,josoap,)"""
                 ldconn.ldap_replace_attr(self.objtype, obj, attr, value,
                                          rdn="{k}={v}".format(k="nisMapName",
                                                               v=map_name))
+
             @shellac.completer(partial(ldconn.ldap_search, "automount"))
             @util.printexceptions
             def do_delete(self, args):
@@ -465,7 +466,7 @@ Example: netgroup member delete ng1 (,josoap,)"""
 
                 ldconn.ldap_delete(self.objtype, args,
                                    rdn="{k}={v}".format(k="nisMapName",
-                                                              v=map_name))
+                                                        v=map_name))
 
         @objtype("dyngroup")
         class do_dyngroup(LDAPListCommands):
