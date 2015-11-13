@@ -13,6 +13,7 @@ import ldap.modlist
 import os
 import shellac
 import subprocess
+import sys
 import tempfile
 
 
@@ -499,9 +500,13 @@ def main():
 
     # Bind the LDAP, so that our shell objects can access it
     with ldapsession.LDAPSession(objconf) as ldconn:
-
         shell = shell_factory(ldconn, config, options, objconf)
         if options.interactive:
-            shell.cmdloop()
+            while True:
+                try:
+                    shell.cmdloop()
+                    sys.exit(0)
+                except KeyboardInterrupt:
+                    print()
         else:
             shell.onecmd(' '.join(args))
