@@ -75,7 +75,12 @@ def shell_factory(ldconn, config, options, objconf):
 
         def complete_default(self, token=""):
             """Default completion method if no explicit method set."""
-            return ldconn.ldap_search(self.objtype, token)
+
+            # ldap_search returns a generator containing a list,
+            # where each item is a list containing a tuple.
+            # the tuple contains the DN, and the object attributes
+            # Use get_rdn to extract just the value of the first RDN
+            return [util.get_rdn(x[0][0]) for x in ldconn.ldap_search(self.objtype, token)]
 
         @util.printexceptions
         def do_add(self, args):
@@ -147,10 +152,9 @@ Usage: {0} modify entry attr val""".format(self.objtype)
 
         def do_search(self, args):
             """Search for LDAP objects."""
-            try:
-                print(ldconn.ldap_search(self.objtype, args))
-            except shellac.CompletionError:
-                print("Search timed out.")
+
+            for rdata in ldconn.ldap_search(self.objtype, args):
+                print(util.get_rdn(rdata[0][0]))
 
         def help_search(self, args):
             """help method for do_search."""
@@ -159,16 +163,13 @@ Search for entries which start with a pattern.
 
 Usage: {0} search pattern""".format(self.objtype)
 
+        @util.printexceptions
         def do_show(self, args):
             """Show the attributes of a list of LDAP objects."""
-            print('\n'.join(ldconn.ldap_to_ldif(self.show(arg)) for arg in args.split()))
 
-        def show(self, args):
-            """Gets an object's attributes for do_show method."""
-            try:
-                return ldconn.ldap_attrs(self.objtype, args)
-            except shellac.CompletionError:
-                return "Search timed out."
+            for arg in args.split():
+                for rdata in ldconn.ldap_attrs(self.objtype, arg):
+                    print(ldconn.ldap_to_ldif(rdata))
 
         def help_show(self, args):
             """help method for do_show."""
@@ -508,6 +509,7 @@ def main():
                     shell.cmdloop()
                     sys.exit(0)
                 except KeyboardInterrupt:
+                    ldconn.cancel_all()
                     print()
         else:
             shell.onecmd(' '.join(args))

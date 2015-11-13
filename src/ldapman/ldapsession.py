@@ -6,11 +6,17 @@ Provides 'high-level' methods to query and manipulate LDAP data.
 import ConfigParser
 import io
 import ldap
+import ldap.resiter
 import ldap.sasl
 import ldap.schema
 import ldap.modlist
 import ldif
 from StringIO import StringIO
+
+
+class LDAPObj(ldap.ldapobject.LDAPObject, ldap.resiter.ResultProcessor):
+    """Use resiter as a mixin with LDAPObject."""
+    pass
 
 
 class LDAPSession(object):
@@ -26,7 +32,7 @@ class LDAPSession(object):
         """Make a connection to the LDAP server."""
 
         self.server = self.conf.globalconf.get('global', 'server')
-        self.conn = ldap.initialize(self.server)
+        self.conn = LDAPObj(self.server)
         sasl = ldap.sasl.gssapi()
         self.conn.sasl_interactive_bind_s('', sasl)
 
@@ -94,48 +100,43 @@ class LDAPSession(object):
     def ldap_search(self, objtype, token):
         """Search the tree for a matching entry."""
 
-        timeout = -1
-        try:
-            timeout = float(self.conf.globalconf.get('global', 'timeout'))
-        except ConfigParser.Error:
-            pass
         try:
             scope = getattr(ldap, self.conf[objtype]['scope'])
         except KeyError:
             scope = ldap.SCOPE_ONELEVEL
-        try:
-            result = self.conn.search_st(self.conf[objtype]['base'],
-                                         scope,
-                                         filterstr="{0}={1}*".format(
-                                             self.conf[objtype]['filter'],
-                                             token),
-                                         timeout=timeout)
-        except ldap.TIMEOUT:
-            raise shellac.CompletionError("Search timed out.")
 
-        # Result is a list of tuples, first item of which is DN
-        # Strip off the base, then parition on = and keep value
-        # Could alternatively split on = and keep first value?
-        return [util.get_rdn(x[0]) for x in result]
+        # Asynchronous search returns a msg id for later use
+        msg_id = self.conn.search(self.conf[objtype]['base'],
+                                  scope,
+                                  filterstr="{0}={1}*".format(
+                                      self.conf[objtype]['filter'], token))
+        # allresults generator returns res_type, res_data, res_id, res_controls
+        # We only care about res_data
+        for _,res_data,_,_ in self.conn.allresults(msg_id):
+            # yield so that we preserve the generator nature of allresults,
+            yield res_data
+
+    def cancel_all(self):
+        """Cancel all active LDAP operations."""
+        # Not documented, but works in testing (RES_ANY = -1)
+        self.conn.cancel(ldap.RES_ANY)
 
     def ldap_attrs(self, objtype, token):
         """Get the attributes of an object."""
 
-        timeout = float(self.conf.globalconf.get('global', 'timeout', vars={'timeout': '-1'}))
         try:
             scope = getattr(ldap, self.conf[objtype]['scope'])
         except KeyError:
             scope = ldap.SCOPE_ONELEVEL
 
-        try:
-            return self.conn.search_st(self.conf[objtype]['base'],
-                                       scope,
-                                       filterstr="{0}={1}".format(
-                                           self.conf[objtype]['filter'],
-                                           token),
-                                       timeout=timeout)
-        except ldap.TIMEOUT:
-            raise shellac.CompletionError("Search timed out.")
+        msg_id = self.conn.search(self.conf[objtype]['base'],
+                                  scope,
+                                  filterstr="{0}={1}".format(
+                                      self.conf[objtype]['filter'], token))
+
+        # allresults returns: res_type, res_data, res_id, res_controls
+        # We only care about res_data
+        return (x[1] for x in self.conn.allresults(msg_id))
 
     def ldap_add(self, objtype, args, rdn=""):
         """Add an entry. rdn is an optional prefix to the DN."""
