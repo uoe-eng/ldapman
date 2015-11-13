@@ -129,10 +129,16 @@ class LDAPSession(object):
         except KeyError:
             scope = ldap.SCOPE_ONELEVEL
 
+        attrlist = []
+        try:
+            attrlist.extend(self.conf.globalconf.get(objtype, 'attrlist').split(','))
+        except ConfigParser.Error:
+            pass
         msg_id = self.conn.search(self.conf[objtype]['base'],
                                   scope,
                                   filterstr="{0}={1}".format(
-                                      self.conf[objtype]['filter'], token))
+                                      self.conf[objtype]['filter'], token),
+                                  attrlist=attrlist)
 
         # allresults returns: res_type, res_data, res_id, res_controls
         # We only care about res_data
