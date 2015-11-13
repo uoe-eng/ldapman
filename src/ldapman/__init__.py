@@ -226,11 +226,21 @@ Usage: {1} edit entry""".format(os.getenv("EDITOR", "/usr/bin/vi"),
 
     class LDAPMan(shellac.Shellac, object):
         """
-LDAPman shell environment
--------------------------
+LDAPMan Shell
+-------------
 
-Press TAB to see possible completions.
+Command-line LDAP Management tool.
+
+- Press <TAB> to see possible command-line completions.
+- Type 'help <TAB>' to see which commands have help documentation.
+- Type 'exit' or ctrl-d to quit.
+
         """
+
+        def __init__(self):
+            super(LDAPMan, self).__init__()
+            if self.stdin.isatty():
+                self.prompt = "%s> " % (self.__class__.__name__)
 
         @objtype("user")
         class do_user(LDAPListCommands):
@@ -504,6 +514,7 @@ def main():
     with ldapsession.LDAPSession(objconf) as ldconn:
         shell = shell_factory(ldconn, config, options, objconf)
         if options.interactive:
+            shell.onecmd('help')
             while True:
                 try:
                     shell.cmdloop()
