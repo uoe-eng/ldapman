@@ -224,7 +224,7 @@ Open the object(s) in a text editor for editing.
 Usage: {1} edit entry""".format(os.getenv("EDITOR", "/usr/bin/vi"),
                                 self.objtype)
 
-    class LDAPMan(shellac.Shellac, object):
+    class LDAPMan(shellac.Shellac):
         """
 LDAPMan Shell
 -------------
