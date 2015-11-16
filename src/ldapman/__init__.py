@@ -518,6 +518,7 @@ def main():
             while True:
                 try:
                     shell.cmdloop()
+                    print()
                     sys.exit(0)
                 except KeyboardInterrupt:
                     ldconn.cancel_all()
