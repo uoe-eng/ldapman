@@ -201,7 +201,7 @@ Usage: {0} show entry""".format(self.objtype)
 
             adds, mods, dels = util.compare_dicts(oldentries, newentries)
 
-            print("Changes: {0:d} Addition(s), {1:d} Modification(s), {2:d} Deletion(s).".format(len(adds.keys()), len(mods.keys()), len(dels.keys())))
+            print("Changes: {0:d} Addition(s), {1:d} Modification(s), {2:d} Deletion(s).".format(len(adds.keys()), len(mods.keys()), len(dels)))
 
             if safe_to_continue():
                 for d_name, val in adds.items():
@@ -210,7 +210,7 @@ Usage: {0} show entry""".format(self.objtype)
                     ldconn.conn.modify_s(d_name,
                                          ldap.modlist.modifyModlist(oldval,
                                                                     newval))
-                for d_name in dels.keys():
+                for d_name in dels:
                     ldconn.conn.delete_s(d_name)
             else:
                 print("No changes made.")

@@ -56,24 +56,21 @@ class LDAPConfig(dict):
 
 
 def compare_dicts(olddict, newdict):
-    """Compare two dictionaries - return a tuple of 3 dictionaries
+    """Compare two dictionaries - return a tuple of dict, dict, set
         - [0] contains 'adds' as k:v
         - [1] contains 'modifies' as k:(oldv,newv)
-        - [2] contains 'deletes' as k:None
+        - [2] contains 'deletes'
 
     """
 
     adds = {}
     mods = {}
-    dels = {}
     for key, val in newdict.items():
         if key not in olddict:
             adds[key] = val
         elif olddict[key] != newdict[key]:
             mods[key] = (olddict[key], val)
-    for key in olddict:
-        if key not in newdict:
-            dels[key] = None
+    dels = set(key for key in olddict if key not in newdict)
 
     return adds, mods, dels
 
