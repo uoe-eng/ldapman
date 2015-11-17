@@ -80,7 +80,10 @@ def shell_factory(ldconn, config, options, objconf):
             # where each item is a list containing a tuple.
             # the tuple contains the DN, and the object attributes
             # Use get_rdn to extract just the value of the first RDN
-            return [util.get_rdn(x[0][0]) for x in ldconn.ldap_search(self.objtype, token)]
+            try:
+                return [util.get_rdn(x[0][0]) for x in ldconn.ldap_search(self.objtype, token)]
+            except KeyboardInterrupt:
+                shellac.Shellac().redraw(prompt=True)
 
         @util.printexceptions
         def do_add(self, args):
