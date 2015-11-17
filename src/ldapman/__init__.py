@@ -513,6 +513,9 @@ def main():
     # Bind the LDAP, so that our shell objects can access it
     with ldapsession.LDAPSession(objconf) as ldconn:
         shell = shell_factory(ldconn, config, options, objconf)
+        # Override shellac's ctrl_c method to cancel active LDAP operations.
+        shell.ctrl_c = lambda x: ldconn.cancel_all()
+
         if options.interactive:
             shell.onecmd('help')
             shell.cmdloop()
