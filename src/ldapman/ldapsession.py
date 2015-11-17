@@ -112,7 +112,7 @@ class LDAPSession(object):
                                       self.conf[objtype]['filter'], token))
         # allresults generator returns res_type, res_data, res_id, res_controls
         # We only care about res_data
-        for _,res_data,_,_ in self.conn.allresults(msg_id):
+        for _, res_data, _, _ in self.conn.allresults(msg_id):
             # yield so that we preserve the generator nature of allresults,
             yield res_data
 
