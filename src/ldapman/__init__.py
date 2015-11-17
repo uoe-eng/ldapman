@@ -515,13 +515,6 @@ def main():
         shell = shell_factory(ldconn, config, options, objconf)
         if options.interactive:
             shell.onecmd('help')
-            while True:
-                try:
-                    shell.cmdloop()
-                    print()
-                    sys.exit(0)
-                except KeyboardInterrupt:
-                    ldconn.cancel_all()
-                    print()
+            shell.cmdloop()
         else:
             shell.onecmd(' '.join(args))
