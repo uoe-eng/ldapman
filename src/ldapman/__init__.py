@@ -93,7 +93,7 @@ def shell_factory(ldconn, config, options, objconf):
         def complete_add(self, token=""):
             """Completion method for do_add."""
             return shellac.complete_list(
-                objconf[self.objtype]['must'] + objconf[self.objtype]['may'], token)
+                objconf[self.objtype]['must'] + objconf[self.objtype]['may'], token, append_character="=")
 
         def help_add(self, args):
             """help method for do_add."""
