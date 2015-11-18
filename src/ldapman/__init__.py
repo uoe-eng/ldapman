@@ -190,40 +190,78 @@ Usage: {0} show entry""".format(self.objtype)
 
         @util.printexceptions
         def do_edit(self, args):
-            """Edit the ldif of an LDAP object with $EDITOR."""
-            result = self.show(args or '*')
-            oldentries = dict(result)
-            # Parse python-ldap dict into ldif, write into a tempfile
+            """Edit the ldif of LDAP object(s) with $EDITOR."""
+
+            results = list(self.get_attrs(args or '*'))
+            # First edit - 'old' and 'new' data are identical
+            try:
+                edited, adds, mods, dels = self.edit(results, results)
+            except subprocess.CalledProcessError:
+                print("Editor exited non-zero, aborting.")
+                return
+
+            # Loop until editing is successful (or cancelled)
+            while True:
+                if safe_to_continue():
+                    try:
+                        for d_name, val in adds.items():
+                            ldconn.conn.add_s(d_name,
+                                              ldap.modlist.addModlist(val))
+                        for d_name, (oldval, newval) in mods.items():
+                            ldconn.conn.modify_s(d_name,
+                                                 ldap.modlist.modifyModlist(oldval, newval))
+                        for d_name in dels:
+                            ldconn.conn.delete_s(d_name)
+                        # No exceptions raised - safe to exit the loop
+                        break
+                    except ldap.LDAPError as exc:
+                        # something went wrong - offer the chance to re-edit
+                        print("ERROR:%s: %s" % (exc.args[0]['desc'], exc.args[0]['info']))
+                        if (options.interactive and raw_input(
+                            "Do you wish to re-edit? (y/n):").lower().startswith('y')):
+                            # Re-edit using data from last edit
+                            try:
+                                edited, adds, mods, dels = self.edit(results, edited)
+                            except subprocess.CalledProcessError:
+                                print("Editor exited non-zero, aborting.")
+                                break
+                        else:
+                            break
+                else:
+                    print("No changes made.")
+                    break
+
+        def edit(self, origdata, data):
+            """Parse python-ldap results list into ldif, write into a tempfile.
+               Launch $EDITOR, then returns saved file contents
+               as an equivalent list for processing.
+               Finally, compare pre and post-edit data and return diffs."""
+
             with tempfile.TemporaryFile() as tmpf:
-                tmpf.write(ldconn.ldap_to_ldif(result))
+                for entry in data:
+                    tmpf.write(ldconn.ldap_to_ldif(entry))
                 tmpf.seek(0, 0)
                 fcntl.fcntl(tmpf.fileno(), fcntl.F_SETFD, 0)  # clear FD_CLOEXEC
                 # Open the tempfile in an editor
-                if subprocess.call([os.getenv('EDITOR', "/usr/bin/vi"),
-                                    '/dev/fd/{0:d}'.format(
-                                        tmpf.fileno())]) != 0:
-                    print("Editor exited non-zero, aborting.")
-                    return
+                # Errors will cause subprocess.CalledProcessError to be thrown
+                subprocess.check_call([os.getenv('EDITOR', "/usr/bin/vi"),
+                                          '/dev/fd/{0:d}'.format(
+                                              tmpf.fileno())])
 
-                # Parse the tempfile ldif back to a dict, then close tempfile
+                # Parse the ldif to a list of list of tuples, then close tmpf
                 tmpf.seek(0, 0)
-                newentries = dict(ldconn.ldif_to_ldap(tmpf.read()))
+                edited = [ldconn.ldif_to_ldap(tmpf.read())]
 
-            adds, mods, dels = util.compare_dicts(oldentries, newentries)
-
+            # Compare the data before and after save
+            new_entries = {}
+            orig_entries = {}
+            for entry in origdata:
+                orig_entries.update(dict(entry))
+            for entry in edited:
+                new_entries.update(dict(entry))
+            adds, mods, dels = util.compare_dicts(orig_entries, new_entries)
             print("Changes: {0:d} Addition(s), {1:d} Modification(s), {2:d} Deletion(s).".format(len(adds.keys()), len(mods.keys()), len(dels)))
-
-            if safe_to_continue():
-                for d_name, val in adds.items():
-                    ldconn.conn.add_s(d_name, ldap.modlist.addModlist(val))
-                for d_name, (oldval, newval) in mods.items():
-                    ldconn.conn.modify_s(d_name,
-                                         ldap.modlist.modifyModlist(oldval,
-                                                                    newval))
-                for d_name in dels:
-                    ldconn.conn.delete_s(d_name)
-            else:
-                print("No changes made.")
+            return edited, adds, mods, dels
 
         def help_edit(self, args):
             """help method for do_edit."""
