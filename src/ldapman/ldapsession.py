@@ -105,11 +105,17 @@ class LDAPSession(object):
         except KeyError:
             scope = ldap.SCOPE_ONELEVEL
 
+        if "=" in token:
+            # token is attribute=value - use explicitly
+            filterstr = token
+        else:
+            # token is just value - prepend default attribute
+            filterstr = "{0}={1}*".format(self.conf[objtype]['filter'],
+                                          token)
         # Asynchronous search returns a msg id for later use
         msg_id = self.conn.search(self.conf[objtype]['base'],
                                   scope,
-                                  filterstr="{0}={1}*".format(
-                                      self.conf[objtype]['filter'], token))
+                                  filterstr=filterstr)
         # allresults generator returns res_type, res_data, res_id, res_controls
         # We only care about res_data
         for _, res_data, _, _ in self.conn.allresults(msg_id):
@@ -134,10 +140,17 @@ class LDAPSession(object):
             attrlist.extend(self.conf.globalconf.get(objtype, 'attrlist').split(','))
         except ConfigParser.Error:
             pass
+
+        if "=" in token:
+            # token is attribute=value - use explicitly
+            filterstr = token
+        else:
+            # token is just value - prepend default attribute
+            filterstr = "{0}={1}*".format(self.conf[objtype]['filter'],
+                                          token)
         msg_id = self.conn.search(self.conf[objtype]['base'],
                                   scope,
-                                  filterstr="{0}={1}".format(
-                                      self.conf[objtype]['filter'], token),
+                                  filterstr=filterstr,
                                   attrlist=attrlist)
 
         # allresults returns: res_type, res_data, res_id, res_controls
