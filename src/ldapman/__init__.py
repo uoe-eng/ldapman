@@ -170,9 +170,16 @@ Usage: {0} search pattern""".format(self.objtype)
         def do_show(self, args):
             """Show the attributes of a list of LDAP objects."""
 
+            for rdata in self.get_attrs(args):
+                print(ldconn.ldap_to_ldif(rdata))
+
+        @util.printexceptions
+        def get_attrs(self, args):
+            """Retrieve the attributes of a list of LDAP objects."""
+
             for arg in args.split():
                 for rdata in ldconn.ldap_attrs(self.objtype, arg):
-                    print(ldconn.ldap_to_ldif(rdata))
+                    yield rdata
 
         def help_show(self, args):
             """help method for do_show."""
