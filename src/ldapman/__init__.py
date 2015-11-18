@@ -192,16 +192,15 @@ Usage: {0} show entry""".format(self.objtype)
         def do_edit(self, args):
             """Edit the ldif of LDAP object(s) with $EDITOR."""
 
-            results = list(self.get_attrs(args or '*'))
-            # First edit - 'old' and 'new' data are identical
-            try:
-                edited, adds, mods, dels = self.edit(results, results)
-            except subprocess.CalledProcessError:
-                print("Editor exited non-zero, aborting.")
-                return
-
+            edited = origdata = list(self.get_attrs(args or '*'))
             # Loop until editing is successful (or cancelled)
             while True:
+                try:
+                    edited, adds, mods, dels = self.edit(origdata, edited)
+                except subprocess.CalledProcessError:
+                    print("Editor exited non-zero, aborting.")
+                    return
+                print("Changes: {0:d} Addition(s), {1:d} Modification(s), {2:d} Deletion(s).".format(len(adds.keys()), len(mods.keys()), len(dels)))
                 if (adds or mods or dels) and safe_to_continue():
                     try:
                         for d_name, val in adds.items():
@@ -219,12 +218,7 @@ Usage: {0} show entry""".format(self.objtype)
                         print("ERROR:%s: %s" % (exc.args[0]['desc'], exc.args[0]['info']))
                         if (options.interactive and raw_input(
                             "Do you wish to re-edit? (y/n):").lower().startswith('y')):
-                            # Re-edit using data from last edit
-                            try:
-                                edited, adds, mods, dels = self.edit(results, edited)
-                            except subprocess.CalledProcessError:
-                                print("Editor exited non-zero, aborting.")
-                                break
+                            continue
                         else:
                             break
                 else:
@@ -260,7 +254,6 @@ Usage: {0} show entry""".format(self.objtype)
             for entry in edited:
                 new_entries.update(dict(entry))
             adds, mods, dels = util.compare_dicts(orig_entries, new_entries)
-            print("Changes: {0:d} Addition(s), {1:d} Modification(s), {2:d} Deletion(s).".format(len(adds.keys()), len(mods.keys()), len(dels)))
             return edited, adds, mods, dels
 
         def help_edit(self, args):
