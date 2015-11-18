@@ -192,7 +192,7 @@ Usage: {0} show entry""".format(self.objtype)
         def do_edit(self, args):
             """Edit the ldif of LDAP object(s) with $EDITOR."""
 
-            edited = origdata = list(self.get_attrs(args or '*'))
+            edited = origdata = list(self.get_attrs(args))
             # Loop until editing is successful (or cancelled)
             while True:
                 try:
