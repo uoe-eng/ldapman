@@ -215,7 +215,7 @@ Usage: {0} show entry""".format(self.objtype)
                         break
                     except ldap.LDAPError as exc:
                         # something went wrong - offer the chance to re-edit
-                        print("ERROR:%s: %s" % (exc.args[0]['desc'], exc.args[0]['info']))
+                        print("ERROR:%s %s" % (exc.args[0].get('desc', ''), exc.args[0].get('info', '')))
                         if (options.interactive and raw_input(
                             "Do you wish to re-edit? (y/n):").lower().startswith('y')):
                             continue
