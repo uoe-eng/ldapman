@@ -202,7 +202,7 @@ Usage: {0} show entry""".format(self.objtype)
 
             # Loop until editing is successful (or cancelled)
             while True:
-                if safe_to_continue():
+                if (adds or mods or dels) and safe_to_continue():
                     try:
                         for d_name, val in adds.items():
                             ldconn.conn.add_s(d_name,
