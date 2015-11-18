@@ -9,6 +9,7 @@ from ast import literal_eval
 from functools import wraps
 from ldap import LDAPError
 from optparse import OptionParser
+from collections import namedtuple
 
 
 class LDAPConfig(dict):
@@ -55,6 +56,9 @@ class LDAPConfig(dict):
                                        conf['base'])
 
 
+dict_changes = namedtuple("dict_changes", "adds mods dels")
+
+
 def compare_dicts(olddict, newdict):
     """Compare two dictionaries - return a tuple of dict, dict, set
         - [0] contains 'adds' as k:v
@@ -72,7 +76,7 @@ def compare_dicts(olddict, newdict):
             mods[key] = (olddict[key], val)
     dels = set(key for key in olddict if key not in newdict)
 
-    return adds, mods, dels
+    return dict_changes(adds, mods, dels)
 
 
 def get_rdn(obj):

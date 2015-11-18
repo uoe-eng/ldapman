@@ -196,20 +196,20 @@ Usage: {0} show entry""".format(self.objtype)
             # Loop until editing is successful (or cancelled)
             while True:
                 try:
-                    edited, adds, mods, dels = self.edit(origdata, edited)
+                    edited, mods = self.edit(origdata, edited)
                 except subprocess.CalledProcessError:
                     print("Editor exited non-zero, aborting.")
                     return
-                print("Changes: {0:d} Addition(s), {1:d} Modification(s), {2:d} Deletion(s).".format(len(adds.keys()), len(mods.keys()), len(dels)))
-                if (adds or mods or dels) and safe_to_continue():
+                print("Changes: {0:d} Addition(s), {1:d} Modification(s), {2:d} Deletion(s).".format(len(mods.adds.keys()), len(mods.mods.keys()), len(mods.dels)))
+                if any(mods) and safe_to_continue():
                     try:
-                        for d_name, val in adds.items():
+                        for d_name, val in mods.adds.items():
                             ldconn.conn.add_s(d_name,
                                               ldap.modlist.addModlist(val))
-                        for d_name, (oldval, newval) in mods.items():
+                        for d_name, (oldval, newval) in mods.mods.items():
                             ldconn.conn.modify_s(d_name,
                                                  ldap.modlist.modifyModlist(oldval, newval))
-                        for d_name in dels:
+                        for d_name in mods.dels:
                             ldconn.conn.delete_s(d_name)
                         # No exceptions raised - safe to exit the loop
                         break
@@ -253,8 +253,7 @@ Usage: {0} show entry""".format(self.objtype)
                 orig_entries.update(dict(entry))
             for entry in edited:
                 new_entries.update(dict(entry))
-            adds, mods, dels = util.compare_dicts(orig_entries, new_entries)
-            return edited, adds, mods, dels
+            return edited, util.compare_dicts(orig_entries, new_entries)
 
         def help_edit(self, args):
             """help method for do_edit."""
