@@ -83,7 +83,7 @@ def shell_factory(ldconn, config, options, objconf):
             try:
                 return [util.get_rdn(x[0][0]) for x in ldconn.ldap_search(self.objtype, token)]
             except KeyboardInterrupt:
-                shellac.Shellac().redraw(prompt=True)
+                shellac.Shellac().cancel(prompt=True)
 
         @util.printexceptions
         def do_add(self, args):
