@@ -494,6 +494,7 @@ Example: netgroup member delete ng1 (,josoap,)"""
             def do_modify(self, args):
                 """Modify the attributes of an automount object."""
                 try:
+                    # value may contain spaces, e.g. 'server:/x/y nosuid'
                     obj, attr, value = args.split(' ', 2)
                 except ValueError:
                     print("Wrong number of arguments supplied. See help for more information.")
