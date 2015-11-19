@@ -513,6 +513,7 @@ Example: netgroup member delete ng1 (,josoap,)"""
 
             @shellac.completer(partial(ldconn.ldap_search, "automount"))
             @util.printexceptions
+            @safety_check
             def do_delete(self, args):
                 """delete method for automount."""
                 # automount objects are children of maps
