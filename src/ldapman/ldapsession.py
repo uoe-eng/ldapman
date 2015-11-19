@@ -11,6 +11,7 @@ import ldap.sasl
 import ldap.schema
 import ldap.modlist
 import ldif
+import shlex
 from StringIO import StringIO
 
 
@@ -160,14 +161,7 @@ class LDAPSession(object):
     def ldap_add(self, objtype, args, rdn=""):
         """Add an entry. rdn is an optional prefix to the DN."""
 
-        cmdopts = ConfigParser.SafeConfigParser()
-        # Preserve case of keys
-        cmdopts.optionxform = str
-        # Add an 'opts' section header to allow ConfigParser to work
-        args = "[opts]\n" + args.replace(' ', '\n')
-        cmdopts.readfp(io.BytesIO(args))
-
-        attrs = dict(cmdopts.items('opts'))
+        attrs = dict([x.split('=') for x in shlex.split(args)])
 
         # Set objectclass(es) from config file
         attrs['objectclass'] = self.conf[objtype]['objectclass']
