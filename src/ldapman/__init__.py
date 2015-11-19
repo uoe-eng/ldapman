@@ -500,8 +500,12 @@ Example: netgroup member delete ng1 (,josoap,)"""
                     print("Wrong number of arguments supplied. See help for more information.")
                 # automount objects are children of maps
                 # Find the map which the child corresponds to
-                map_name = ldconn.ldap_attrs("automount",
-                                             obj)[0][1]['nisMapName'][0]
+                try:
+                    map_name = ldconn.ldap_attrs("automount",
+                                                 obj).next()[0][1]['nisMapName'][0]
+                except StopIteration:
+                    print("No such object.")
+                    return
 
                 ldconn.ldap_replace_attr(self.objtype, obj, attr, value,
                                          rdn="{k}={v}".format(k="nisMapName",
@@ -513,8 +517,12 @@ Example: netgroup member delete ng1 (,josoap,)"""
                 """delete method for automount."""
                 # automount objects are children of maps
                 # Find the map which the child corresponds to
-                map_name = ldconn.ldap_attrs("automount",
-                                             args.split()[0])[0][1]['nisMapName'][0]
+                try:
+                    map_name = ldconn.ldap_attrs("automount",
+                                                 args.split()[0]).next()[0][1]['nisMapName'][0]
+                except StopIteration:
+                    print("No such object.")
+                    return
 
                 ldconn.ldap_delete(self.objtype, args,
                                    rdn="{k}={v}".format(k="nisMapName",
