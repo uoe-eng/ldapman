@@ -146,8 +146,8 @@ class LDAPSession(object):
             filterstr = token
         else:
             # token is just value - prepend default attribute
-            filterstr = "{0}={1}*".format(self.conf[objtype]['filter'],
-                                          token)
+            filterstr = "{0}={1}".format(self.conf[objtype]['filter'],
+                                         token)
         msg_id = self.conn.search(self.conf[objtype]['base'],
                                   scope,
                                   filterstr=filterstr,
