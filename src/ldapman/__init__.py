@@ -498,6 +498,8 @@ Example: netgroup member delete ng1 (,josoap,)"""
                     obj, attr, value = args.split(' ', 2)
                 except ValueError:
                     print("Wrong number of arguments supplied. See help for more information.")
+                    return
+
                 # automount objects are children of maps
                 # Find the map which the child corresponds to
                 try:
