@@ -32,3 +32,9 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# buildout bin/ scripts
+bin/
+
+# Release version file (see setup.py)
+RELEASE-VERSION

@@ -10,6 +10,7 @@ from functools import wraps
 from ldap import LDAPError
 from optparse import OptionParser
 from collections import namedtuple
+import os
 
 
 class LDAPConfig(dict):
@@ -89,8 +90,10 @@ def parse_config(options):
     """Read in a config file"""
 
     config = ConfigParser.SafeConfigParser()
-    # FIXME(mrichar1): Change to a better default
-    config.read(options.config or 'ldapman.conf')
+    # Merge (optional) configs from /etc and homedir - last one wins
+    config.read(options.config or ['/etc/ldapman.conf',
+                                   os.path.join(os.environ.get('HOME',''),
+                                                '.ldapman')])
     return config
 
 

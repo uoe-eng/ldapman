@@ -15,31 +15,52 @@ pkg_author = 'Matthew Richardson, Bruce Duncan'
 
 # List of python module dependencies
 # pip format: 'foo', 'foo==1.2', 'foo>=1.2' etc
-install_requires = ['python-ldap']
+install_requires = ['python-ldap', 'shellac']
 
-# Do not edit below this line! #
+pkg_classifiers = [
+    'Development Status :: 5 - Production/Stable',
+    'License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)',
+    'Programming Language :: Python',
+    ]
 
-build_dir = "build/"
-dist_dir = "dist/"
-cur_dir = os.getcwd()
-
-def get_git_version(abbrev=4):
+def call_git_describe():
     try:
         p = subprocess.Popen(['git', 'describe'],
                              stdout=subprocess.PIPE)
-        return p.communicate()[0].split('\n')[0].strip()
+        return p.communicate()[0].decode().strip()
     except Exception as e:
-        print e
+        print("HERE", e)
         return None
 
-def main():
-    curdir = os.getcwd()
+
+def read_release_version():
     try:
-        os.mkdir(dist_dir)
-        os.mkdir(build_dir)
-    except OSError as exc:
-        if exc.errno != errno.EEXIST:
-            raise
+        with open("RELEASE-VERSION") as f:
+            return f.readlines()[0].strip()
+    except Exception:
+        return None
+
+
+def write_release_version(version):
+    with open("RELEASE-VERSION", "w") as f:
+        f.write("%s\n" % version)
+
+
+def get_git_version():
+    version = call_git_describe()
+    release_version = read_release_version()
+    if version is None:
+        version = release_version
+
+    if version is None:
+        raise ValueError("Unable to determine the version number!")
+
+    if version != release_version:
+        write_release_version(version)
+
+    return version
+
+def main():
 
     setuptools.setup(
         name=pkg_name,
@@ -53,9 +74,9 @@ def main():
         include_package_data=True,
         package_data = {'': ['LICENSE']},
         install_requires=install_requires,
-        scripts=['bin/ldapman'],
+        scripts=['src/bin/ldapman'],
+	data_files=[('/etc', ['src/etc/ldapman.conf'])],
         )
-
 
 if __name__ == "__main__":
     main()
