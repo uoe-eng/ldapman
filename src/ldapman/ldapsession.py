@@ -113,7 +113,6 @@ class LDAPSession(object):
         sizelimit = 0
         try:
             sizelimit = self.conf.globalconf.getint('global', 'sizelimit')
-            print(sizelimit)
         except ConfigParser.Error:
             pass
 
