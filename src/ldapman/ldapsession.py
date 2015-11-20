@@ -110,6 +110,13 @@ class LDAPSession(object):
         except KeyError:
             scope = ldap.SCOPE_ONELEVEL
 
+        sizelimit = 0
+        try:
+            sizelimit = self.conf.globalconf.getint('global', 'sizelimit')
+            print(sizelimit)
+        except ConfigParser.Error:
+            pass
+
         if "=" in token:
             # token is attribute=value - use explicitly
             filterstr = token
@@ -118,14 +125,21 @@ class LDAPSession(object):
             filterstr = "{0}={1}*".format(self.conf[objtype]['filter'],
                                           token)
         # Asynchronous search returns a msg id for later use
-        msg_id = self.conn.search(self.conf[objtype]['base'],
-                                  scope,
-                                  filterstr=filterstr)
+        msg_id = self.conn.search_ext(self.conf[objtype]['base'],
+                                      scope,
+                                      filterstr=filterstr,
+                                      sizelimit=sizelimit)
         # allresults generator returns res_type, res_data, res_id, res_controls
         # We only care about res_data
-        for _, res_data, _, _ in self.conn.allresults(msg_id):
-            # yield so that we preserve the generator nature of allresults,
-            yield res_data
+        try:
+            for _, res_data, _, _ in self.conn.allresults(msg_id):
+                # yield so that we preserve the generator nature of allresults,
+                yield res_data
+        except ldap.SIZELIMIT_EXCEEDED:
+            print("...aborting. Too many results returned.")
+            raise KeyboardInterrupt
+
+
 
     def cancel_all(self):
         """Cancel all active LDAP operations."""
