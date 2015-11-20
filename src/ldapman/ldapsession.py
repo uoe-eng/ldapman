@@ -34,8 +34,12 @@ class LDAPSession(object):
 
         self.server = self.conf.globalconf.get('global', 'server')
         self.conn = LDAPObj(self.server)
-        sasl = ldap.sasl.gssapi()
-        self.conn.sasl_interactive_bind_s('', sasl)
+        try:
+            if self.conf.globalconf.getboolean('global', 'use_gssapi'):
+                sasl = ldap.sasl.gssapi()
+                self.conn.sasl_interactive_bind_s('', sasl)
+        except ConfigParser.Error:
+            pass
 
     def close(self):
         """Close the connection to the LDAP server, if one exists."""
