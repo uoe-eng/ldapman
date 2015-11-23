@@ -73,15 +73,18 @@ def shell_factory(ldconn, config, options, objconf):
                 getattr(self, 'do_' + mthd).__func__.completions = [
                     getattr(self, 'complete_' + mthd, self.complete_default)]
 
-        def complete_default(self, token=""):
+        def complete_default(self, token="", objtype=None):
             """Default completion method if no explicit method set."""
 
             # ldap_search returns a generator containing a list,
             # where each item is a list containing a tuple.
             # the tuple contains the DN, and the object attributes
             # Use get_rdn to extract just the value of the first RDN
+            if not objtype:
+                objtype = self.objtype
+
             try:
-                return [util.get_rdn(x[0][0]) for x in ldconn.ldap_search(self.objtype, token)]
+                return [util.get_rdn(x[0][0]) for x in ldconn.ldap_search(objtype, token)]
             except KeyboardInterrupt:
                 shellac.Shellac().cancel(prompt=True)
 
@@ -291,15 +294,14 @@ Command-line LDAP Management tool.
         class do_group(LDAPListCommands):
             """Add a group menu item."""
 
-            class do_member(object):
+            class do_member(LDAPListCommands):
                 """Add a member menu item."""
 
                 def __init__(self):
                     self.do_add.completions = [self.complete_add]
                     self.do_delete.completions = [self.complete_delete]
 
-                @staticmethod
-                def complete_add(token=""):
+                def complete_add(self, token=""):
                     """complete method for do_add."""
 
                     # If the line looks like "group member add gr..." look for
@@ -309,9 +311,9 @@ Command-line LDAP Management tool.
                     buf = shellac.readline.get_line_buffer()
                     if len(buf[:endidx].split(' ', -1)) >= 5:
                         # Group name given.
-                        return ldconn.ldap_search("user", token)
+                        return self.complete_default(token=token, objtype="user")
                     else:
-                        return ldconn.ldap_search("group", token)
+                        return self.complete_default(token, objtype="group")
 
                 @staticmethod
                 @util.printexceptions
