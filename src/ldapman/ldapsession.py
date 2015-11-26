@@ -135,10 +135,8 @@ class LDAPSession(object):
                 # yield so that we preserve the generator nature of allresults,
                 yield res_data
         except ldap.SIZELIMIT_EXCEEDED:
-            print("...aborting. Too many results returned.")
-            raise KeyboardInterrupt
-
-
+            print("\n...aborted. More than {0} results returned.".format(sizelimit))
+            raise StopIteration
 
     def cancel_all(self):
         """Cancel all active LDAP operations."""
