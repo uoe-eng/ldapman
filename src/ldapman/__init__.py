@@ -505,8 +505,8 @@ Example: netgroup member delete ng1 (,josoap,)"""
                 # automount objects are children of maps
                 # Find the map which the child corresponds to
                 try:
-                    map_name = ldconn.ldap_attrs("automount",
-                                                 obj).next()[0][1]['nisMapName'][0]
+                    map_name = next(ldconn.ldap_attrs("automount",
+                                                      obj))[0][1]['nisMapName'][0]
                 except StopIteration:
                     print("No such object.")
                     return
@@ -523,8 +523,8 @@ Example: netgroup member delete ng1 (,josoap,)"""
                 # automount objects are children of maps
                 # Find the map which the child corresponds to
                 try:
-                    map_name = ldconn.ldap_attrs("automount",
-                                                 args.split()[0]).next()[0][1]['nisMapName'][0]
+                    map_name = next(ldconn.ldap_attrs("automount",
+                                                      args.split()[0]))[0][1]['nisMapName'][0]
                 except StopIteration:
                     print("No such object.")
                     return
