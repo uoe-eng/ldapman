@@ -176,7 +176,7 @@ class LDAPSession(object):
     def ldap_add(self, objtype, args, rdn=""):
         """Add an entry. rdn is an optional prefix to the DN."""
 
-        attrs = dict([x.split('=') for x in shlex.split(args)])
+        attrs = dict([x.split('=',1) for x in shlex.split(args)])
 
         # Set objectclass(es) from config file
         attrs['objectclass'] = self.conf[objtype]['objectclass']
