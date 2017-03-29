@@ -4,7 +4,6 @@ Provides 'high-level' methods to query and manipulate LDAP data.
 """
 
 import ConfigParser
-import io
 import ldap
 import ldap.resiter
 import ldap.sasl
