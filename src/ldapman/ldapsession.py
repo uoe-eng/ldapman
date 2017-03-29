@@ -175,7 +175,10 @@ class LDAPSession(object):
     def ldap_add(self, objtype, args, rdn=""):
         """Add an entry. rdn is an optional prefix to the DN."""
 
-        attrs = dict([x.split('=',1) for x in shlex.split(args)])
+        try:
+            attrs = dict([x.split('=', 1) for x in shlex.split(args)])
+        except ValueError:
+            raise ldap.LDAPError("Invalid attribute(s) specified. (key=value format required).")
 
         # Set objectclass(es) from config file
         attrs['objectclass'] = self.conf[objtype]['objectclass']
