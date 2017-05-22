@@ -4,12 +4,14 @@ Provides 'high-level' methods to query and manipulate LDAP data.
 """
 
 import ConfigParser
+import base64
 import ldap
 import ldap.resiter
 import ldap.sasl
 import ldap.schema
 import ldap.modlist
 import ldif
+import re
 import shlex
 from StringIO import StringIO
 
@@ -66,7 +68,14 @@ class LDAPSession(object):
         for item in pyld:
             ldw.unparse(*item)
 
-        return tmpf.getvalue()
+        result = []
+        for entry in tmpf.getvalue().splitlines():
+            # :: as separator means val is base64
+            match = re.match(r'^([^:]+):: (.*)$', entry)
+            if match:
+                entry = "{0}: {1}".format(match.group(1), base64.b64decode(match.group(2)))
+            result.append(entry)
+        return '\n'.join(result)
 
     @staticmethod
     def ldif_to_ldap(ldiff):
