@@ -2,11 +2,11 @@ ldapman
 -------
 :language: python
 
-+ldapman+ is a command-line ldap management tool, loosely inspired by the https://www.samba.org/[Samba] project's +net+ command.  It uses the https://github.com/mrichar1/shellac[shellac] command-shell to allow tab-completion and command nesting, simplifying common ldap tasks.
++ldapman+ is a command-line ldap management tool, loosely inspired by the https://www.samba.org/[Samba] project's +net+ command.  It uses the https://github.com/mrichar1/shellac[shellac] command-shell to allow tab-completion and command nesting, simplifying common LDAP tasks.
 
-+ldapman+ has a simlpe configuration file, which allows you to define default OUs within your ldap infrastructure for common types - users, groups, netgroups, etc.  This allows you to create, modify and remove objects without having to specify full DNs.
++ldapman+ has a simple configuration file, which allows you to define default OUs within your LDAP infrastructure for common types - users, groups, netgroups, etc.  This allows you to create, modify and remove objects without having to specify full DNs.
 
-+ldapman+ makes many assumptions about the layout of common ldap trees and schemas in order to simplify everyday tasks. For example, when adding group members +ldapman+ will auto-complete from the users OU as defined in your configuration. This means that you only need to know the group name and user name and don't have to handle long DNs or complex ldif.
++ldapman+ makes many assumptions about the layout of common LDAP trees and schemas in order to simplify everyday tasks. For example, when adding group members +ldapman+ will auto-complete from the users OU as defined in your configuration. This means that you only need to know the group name and user name and don't have to handle long DNs or complex LDIF.
 
 This documentation aims to highlight some of the features of ldapman, but it is not a complete reference. The best approach to learning +ldapman+ is to fire it up and explore the command-shell using the auto-complete features.
 
@@ -16,7 +16,7 @@ Using +ldapman+
 Configuration
 ^^^^^^^^^^^^^
 
-An example configuration file is provided with the project. There are 2 configuration seciton types - global carries global configuration, and sections which apply to common ldap object types (user, group, automap, automount, netgroup, dyngroup). Most fields should be obvious, but there are some which are worth explaining in the object type configuration sections:
+An example configuration file is provided with the project. There are 2 configuration seciton types - global carries global configuration, and sections which apply to common LDAP object types (user, group, automap, automount, netgroup, dyngroup). Most fields should be obvious, but there are some which are worth explaining in the object type configuration sections:
 
 ----
 filter: The object attribute to use when searching/filtering commands.
@@ -135,9 +135,9 @@ member: uid=alice,ou=people,ou=company,dc=ldap,dc=example,dc=com
 ----
 
 
-All commands have an 'edit' subcommand - this will convert the requested object to ldif, open it in your favourite editor (as set by $EDITOR) and, if saved, write back to the LDAP.
+All commands have an 'edit' subcommand - this will convert the requested object to LDIF, open it in your favourite editor (as set by $EDITOR) and, if saved, write back to the LDAP.
 
-TIP: Note that 'edit' without options will attempt to open all objects in that category as one ldif.
+TIP: Note that 'edit' without options will attempt to open all objects in that category as one LDIF.
 
 
 Command-line scripting
