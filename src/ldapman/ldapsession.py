@@ -3,7 +3,10 @@
 Provides 'high-level' methods to query and manipulate LDAP data.
 """
 
-import ConfigParser
+try:
+    from configparser import ConfigParser
+except ImportError:
+    import ConfigParser
 import base64
 import ldap
 import ldap.resiter
@@ -13,7 +16,10 @@ import ldap.modlist
 import ldif
 import re
 import shlex
-from StringIO import StringIO
+try:
+    from io import StringIO
+except ImportError:
+    from StringIO import StringIO
 
 
 class LDAPObj(ldap.ldapobject.LDAPObject, ldap.resiter.ResultProcessor):
