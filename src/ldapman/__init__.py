@@ -234,7 +234,7 @@ Usage: {0} show entry""".format(self.objtype)
                as an equivalent list for processing.
                Finally, compare pre and post-edit data and return diffs."""
 
-            with tempfile.TemporaryFile() as tmpf:
+            with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as tmpf:
                 for entry in data:
                     tmpf.write(ldconn.ldap_to_ldif(entry))
                 tmpf.seek(0, 0)
