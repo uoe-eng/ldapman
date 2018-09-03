@@ -243,7 +243,7 @@ Usage: {0} show entry""".format(self.objtype)
                 # Errors will cause subprocess.CalledProcessError to be thrown
                 subprocess.check_call([os.getenv('EDITOR', "/usr/bin/vi"),
                                           '/dev/fd/{0:d}'.format(
-                                              tmpf.fileno())])
+                                              tmpf.fileno())], close_fds=False)
 
                 # Parse the ldif to a list of list of tuples, then close tmpf
                 tmpf.seek(0, 0)
