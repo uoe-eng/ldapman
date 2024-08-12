@@ -38,3 +38,7 @@ bin/
 
 # Release version file (see setup.py)
 RELEASE-VERSION
+
+# Pythonvenv
+env/
+venv/
