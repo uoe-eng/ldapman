@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from . import errors
 
-import ConfigParser
+import configparser
 from ast import literal_eval
 from functools import wraps
 from ldap import LDAPError
@@ -89,7 +89,7 @@ def get_rdn(obj):
 def parse_config(options):
     """Read in a config file"""
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.ConfigParser()
     # Merge (optional) configs from /etc and homedir - last one wins
     config.read(options.config or ['/etc/ldapman.conf',
                                    os.path.join(os.environ.get('HOME',''),
@@ -130,7 +130,7 @@ def printexceptions(func):
             else:
                 # Otherwise, treat as a simple string
                 print(exc)
-        except (ConfigParser.ParsingError, errors.BuildDNError) as exc:
+        except (configparser.ParsingError, errors.BuildDNError) as exc:
             print(exc)
         # Otherwise, print and raise exceptions if debug is enabled
         except Exception as exc:

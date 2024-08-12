@@ -32,31 +32,11 @@ def call_git_describe():
         print("HERE", e)
         return None
 
-
-def read_release_version():
-    try:
-        with open("RELEASE-VERSION") as f:
-            return f.readlines()[0].strip()
-    except Exception:
-        return None
-
-
-def write_release_version(version):
-    with open("RELEASE-VERSION", "w") as f:
-        f.write("%s\n" % version)
-
-
 def get_git_version():
     version = call_git_describe()
-    release_version = read_release_version()
-    if version is None:
-        version = release_version
 
     if version is None:
         raise ValueError("Unable to determine the version number!")
-
-    if version != release_version:
-        write_release_version(version)
 
     return version
 
@@ -68,6 +48,7 @@ def main():
         url=pkg_url,
         license=pkg_license,
         description=pkg_description,
+        long_description=pkg_description,
         author=pkg_author,
         packages=setuptools.find_packages('src'),
         package_dir={'': 'src'},
