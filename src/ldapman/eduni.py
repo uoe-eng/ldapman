@@ -1,7 +1,5 @@
 #!/usr/bin/python
 
-from __future__ import print_function
-
 """Constants for use with the Edinburgh University Central Authorisation service
 defined at:
 

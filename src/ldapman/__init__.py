@@ -1,7 +1,5 @@
 """LDAPMan: a command-line shell for managing LDAP objects."""
 
-from __future__ import print_function
-
 from . import errors, ldapsession, util
 
 import configparser
@@ -45,7 +43,7 @@ def shell_factory(ldconn, config, options, objconf):
 
     def safe_to_continue():
         """Returns true if force set, or interactive and 'y' pressed."""
-        if options.force or (options.interactive and raw_input(
+        if options.force or (options.interactive and input(
                 "Are you sure? (y/n):").lower().startswith('y')):
             return True
 
@@ -219,7 +217,7 @@ Usage: {0} show entry""".format(self.objtype)
                     except ldap.LDAPError as exc:
                         # something went wrong - offer the chance to re-edit
                         print("ERROR:%s %s" % (exc.args[0].get('desc', ''), exc.args[0].get('info', '')))
-                        if (options.interactive and raw_input(
+                        if (options.interactive and input(
                             "Do you wish to re-edit? (y/n):").lower().startswith('y')):
                             continue
                         else:
@@ -323,7 +321,7 @@ Command-line LDAP Management tool.
                         group, members = args.split(None, 2)
 
                         ldconn.ldap_mod_attr("group", "add", "member", group,
-                                             [objconf.build_dn(member, child="user") for member in members.split()])
+                                             [objconf.build_dn(member, child="user").encode('utf-8') for member in members.split()])
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 
@@ -362,7 +360,7 @@ Example: group member add staff josoap"""
                         group, members = args.split(None, 2)
 
                         ldconn.ldap_mod_attr("group", "delete", "member", group,
-                                             [objconf.build_dn(member, child="user") for member in members.split()])
+                                             [objconf.build_dn(member, child="user").encode('utf-8') for member in members.split()])
                     except ValueError:
                         print("Wrong number of arguments supplied. See help for more information.")
 

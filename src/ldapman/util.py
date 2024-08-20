@@ -1,7 +1,5 @@
 """Utility functions for ldapman."""
 
-from __future__ import print_function
-
 from . import errors
 
 import configparser
