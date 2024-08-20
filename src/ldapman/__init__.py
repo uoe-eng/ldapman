@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from . import errors, ldapsession, util
 
-import ConfigParser
+import configparser
 import atexit
 import fcntl
 from functools import partial

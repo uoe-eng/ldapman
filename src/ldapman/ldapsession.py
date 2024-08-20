@@ -3,7 +3,7 @@
 Provides 'high-level' methods to query and manipulate LDAP data.
 """
 
-import ConfigParser
+import configparser
 import base64
 import ldap
 import ldap.resiter
@@ -13,7 +13,7 @@ import ldap.modlist
 import ldif
 import re
 import shlex
-from StringIO import StringIO
+from io import StringIO
 
 
 class LDAPObj(ldap.ldapobject.LDAPObject, ldap.resiter.ResultProcessor):
@@ -39,7 +39,7 @@ class LDAPSession(object):
             if self.conf.globalconf.getboolean('global', 'use_gssapi'):
                 sasl = ldap.sasl.gssapi()
                 self.conn.sasl_interactive_bind_s('', sasl)
-        except ConfigParser.Error:
+        except configparser.Error:
             pass
 
     def close(self):
@@ -121,7 +121,7 @@ class LDAPSession(object):
         sizelimit = 0
         try:
             sizelimit = self.conf.globalconf.getint('global', 'sizelimit')
-        except ConfigParser.Error:
+        except configparser.Error:
             pass
 
         if "=" in token:
@@ -162,7 +162,7 @@ class LDAPSession(object):
         attrlist = []
         try:
             attrlist.extend(self.conf.globalconf.get(objtype, 'attrlist').split(','))
-        except ConfigParser.Error:
+        except configparser.Error:
             pass
 
         if "=" in token:
