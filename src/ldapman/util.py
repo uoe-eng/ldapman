@@ -34,7 +34,7 @@ class LDAPConfig(dict):
 
                 # Convert objectclass to a list
                 if 'objectclass' in self[section]:
-                    self[section]['objectclass'] = self[section]['objectclass'].split(',')
+                    self[section]['objectclass'] = [x.encode('utf-8') for x in self[section]['objectclass'].split(',')]
 
                 # 'safe' eval defaultattrs to extract the dict
                 if 'defaultattrs' in self[section]:
@@ -43,6 +43,9 @@ class LDAPConfig(dict):
 
     def build_dn(self, obj, child=None, rdn=""):
         """ Return a DN constructed from a filter, rdn, and base DN."""
+        if isinstance(obj, bytes):
+            # Primary DN field must be string
+            obj = obj.decode('utf-8')
         if len(rdn) != 0:
             rdn += ','
         try:

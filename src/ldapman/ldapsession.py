@@ -105,6 +105,8 @@ class LDAPSession(object):
             # attribute_types returns 2 tuples of all must and may attrs,
             # including recursion into inherited attributes
             # This always includes 'objectClass' so discard this
+            # Schema validation fails if this is bytes, even though must be bytes everywhere else?
+            entry = entry.decode('utf-8')
             attrs = self.schema.attribute_types([entry])
             must.extend([item.names[0] for item in attrs[0].values() if not item.names[0] == "objectClass"])
             may.extend([item.names[0] for item in attrs[1].values() if not item.names[0] == "objectClass"])
@@ -184,10 +186,7 @@ class LDAPSession(object):
     def ldap_add(self, objtype, args, rdn=""):
         """Add an entry. rdn is an optional prefix to the DN."""
 
-        try:
-            attrs = dict([x.split('=', 1) for x in shlex.split(args)])
-        except ValueError:
-            raise ldap.LDAPError("Invalid attribute(s) specified. (key=value format required).")
+        attrs = { k:v.encode('utf-8') for k, v in [x.split('=', 1) for x in shlex.split(args)] }
 
         # Set objectclass(es) from config file
         attrs['objectclass'] = self.conf[objtype]['objectclass']
