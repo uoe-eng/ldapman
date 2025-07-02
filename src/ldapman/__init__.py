@@ -522,7 +522,7 @@ Example: netgroup member delete ng1 (,josoap,)"""
                 # Find the map which the child corresponds to
                 try:
                     map_name = next(ldconn.ldap_attrs("automount",
-                                                      args.split()[0]))[0][1]['nisMapName'][0]
+                                                      args.split()[0]))[0][1]['nisMapName'][0].decode('utf-8')
                 except StopIteration:
                     print("No such object.")
                     return
