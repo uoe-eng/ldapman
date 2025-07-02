@@ -15,7 +15,6 @@ import re
 import shlex
 from io import StringIO
 
-
 class LDAPObj(ldap.ldapobject.LDAPObject, ldap.resiter.ResultProcessor):
     """Use resiter as a mixin with LDAPObject."""
     pass
@@ -237,4 +236,4 @@ class LDAPSession(object):
         """Replace the value of an object attribute."""
 
         self.conn.modify_s(self.conf.build_dn(obj, child=objtype, rdn=rdn),
-                           [(ldap.MOD_REPLACE, attr, value)])
+                           [(ldap.MOD_REPLACE, attr, value.encode('utf-8'))])
