@@ -15,7 +15,7 @@ pkg_author = 'Matthew Richardson, Bruce Duncan'
 
 # List of python module dependencies
 # pip format: 'foo', 'foo==1.2', 'foo>=1.2' etc
-install_requires = ['python-ldap', 'shellac']
+install_requires = ['python3-ldap', 'python3-shellac']
 
 pkg_classifiers = [
     'Development Status :: 5 - Production/Stable',
